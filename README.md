@@ -74,4 +74,4 @@ export default defineConfig([
   },
 ])
 ```
->>>>>>> d93bdca (First commit)
+>>>>>>> d93bdca (First commit )
