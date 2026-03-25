@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutGrid, ArrowRightLeft, Users, Settings, LogOut, PanelLeftClose, PanelRightClose, ArrowUp } from 'lucide-react';
+import { LayoutGrid, ArrowRightLeft, Users, Settings, LogOut, PanelLeftClose, PanelRightClose, ArrowUp, Wallet, Database } from 'lucide-react';
 
 type SidebarProps = {
   isExpanded?: boolean;
@@ -35,7 +35,12 @@ const Sidebar: React.FC<SidebarProps> = ({ isExpanded, isPinned, onTogglePin, on
       <NavLink to="/contacts" className={({ isActive }) => `flex items-center px-4 py-2 text-sm font-medium ${isActive ? 'bg-slate-200 text-slate-900 rounded-lg' : 'text-slate-600 hover:bg-slate-100 rounded-lg'}`}>
         <Users className="h-5 w-5 flex-shrink-0" />{(isExpanded || isPinned) && <span className="ml-3">Contacts</span>}
       </NavLink>
-      {/* Wallet and Blockchain links removed per latest requirements */}
+      <NavLink to="/wallet" className={({ isActive }) => `flex items-center px-4 py-2 text-sm font-medium ${isActive ? 'bg-slate-200 text-slate-900 rounded-lg' : 'text-slate-600 hover:bg-slate-100 rounded-lg'}`}>
+        <Wallet className="h-5 w-5 flex-shrink-0" />{(isExpanded || isPinned) && <span className="ml-3">Wallet</span>}
+      </NavLink>
+      <NavLink to="/blockchain" className={({ isActive }) => `flex items-center px-4 py-2 text-sm font-medium ${isActive ? 'bg-slate-200 text-slate-900 rounded-lg' : 'text-slate-600 hover:bg-slate-100 rounded-lg'}`}>
+        <Database className="h-5 w-5 flex-shrink-0" />{(isExpanded || isPinned) && <span className="ml-3">Blockchain</span>}
+      </NavLink>
       <NavLink to="/settings" className={({ isActive }) => `flex items-center px-4 py-2 text-sm font-medium ${isActive ? 'bg-slate-200 text-slate-900 rounded-lg' : 'text-slate-600 hover:bg-slate-100 rounded-lg'}`}>
         <Settings className="h-5 w-5 flex-shrink-0" />{(isExpanded || isPinned) && <span className="ml-3">Settings</span>}
       </NavLink>

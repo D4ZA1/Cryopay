@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { supabase } from '../supabase';
-import { decryptJwkWithPassword, signString, verifySignature } from '../lib/crypto';
+import { verifyWallet, getWallet } from '../lib/api';
+import { decryptJwkWithPassword, signString } from '../lib/crypto';
 
 const ConfirmKey: React.FC = () => {
   const { user } = useAuth();
@@ -13,18 +13,22 @@ const ConfirmKey: React.FC = () => {
   useEffect(() => {
     if (!user) return;
     (async () => {
-      const { data, error } = await supabase.from('wallets').select('*').eq('user_id', user.id).maybeSingle();
-      if (error) {
+      try {
+        const walletRes = await getWallet();
+        if (!walletRes.ok) {
+          setStatus('Failed to load wallet');
+          return;
+        }
+        setWalletRow(walletRes.data?.wallet || null);
+      } catch (error) {
         console.error(error);
         setStatus('Failed to load wallet');
-        return;
       }
-      setWalletRow(data || null);
     })();
   }, [user]);
 
   const handleRequestChallenge = () => {
-    // In production, request a server-issued nonce via an Edge Function or RPC.
+    // In production, request a server-issued nonce via the Worker API.
     // For now we generate a client-side challenge (not secure) as a placeholder.
     const nonce = 'cryopay:' + Date.now() + ':' + Math.random().toString(36).slice(2);
     setChallenge(nonce);
@@ -43,23 +47,18 @@ const ConfirmKey: React.FC = () => {
 
       setStatus('Sending signature to server for verification...');
       try {
-        // Use Supabase Edge Function 'verify-wallet' - requires that function to be deployed
-        const payload = { user_id: user!.id, public_key: walletRow.public_key, challenge, signature };
-        const { error } = await supabase.functions.invoke('verify-wallet', { body: JSON.stringify(payload) });
-        if (error) {
-          console.error('Edge Function error', error);
-          setStatus('Server verification failed; falling back to local verify');
-          const ok = await verifySignature(walletRow.public_key, challenge, signature);
-          if (!ok) return setStatus('Local signature verification failed');
-          // If local verify ok, still mark verified locally
-          const { error: updErr } = await supabase.from('wallets').update({ verified: true }).eq('user_id', user!.id);
-          if (updErr) {
-            console.error(updErr);
-            return setStatus('Failed to update verification status');
-          }
-          setStatus('Wallet verified (local fallback).');
-        } else {
-          setStatus('Wallet verified by server.');
+        // Use Worker API verify-wallet endpoint
+        const verifyRes = await verifyWallet(walletRow.public_key, challenge, signature);
+        if (!verifyRes.ok) {
+          console.error('Worker verify error', verifyRes.error);
+          setStatus('Server verification failed: ' + (verifyRes.error || 'Unknown error'));
+          return;
+        }
+        setStatus('Wallet verified by server.');
+        // Refresh wallet data to get updated verified status
+        const walletRes = await getWallet();
+        if (walletRes.ok && walletRes.data?.wallet) {
+          setWalletRow(walletRes.data.wallet);
         }
       } catch (err) {
         console.error('verify call failed', err);
@@ -77,7 +76,8 @@ const ConfirmKey: React.FC = () => {
       {!walletRow && <div className="mb-4">No wallet found for your account. Create one on the Wallet page.</div>}
       {walletRow && (
         <div className="space-y-3">
-          <div><strong>Public key id:</strong> <code className="bg-slate-100 px-2 rounded">{walletRow?.public_key?.x?.slice?.(0, 8) || 'n/a'}</code></div>
+          <div><strong>Public key id:</strong> <code className="bg-slate-100 px-2 rounded">{walletRow?.public_key?.x?.slice?.(0, 8) || walletRow?.public_key?.slice(0, 20) || 'n/a'}</code></div>
+          <div><strong>Verified:</strong> {walletRow?.verified ? 'Yes' : 'No'}</div>
           <div>
             <label className="block text-sm font-medium">Encryption password</label>
             <input type="password" value={password} onChange={e => setPassword(e.target.value)} className="mt-1 block w-full rounded border px-3 py-2" />

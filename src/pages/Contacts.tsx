@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Search, Plus, Send, Edit, Trash2, User } from 'lucide-react';
-import { supabase } from '../supabase';
+import { getContacts, createContact, deleteContact, getProfile, apiFetch, getBlocks, createBlock } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 import { encryptJSONWithPassword, sha256Hex } from '../lib/crypto';
 import { setSymKey } from '../lib/symmetricSession';
@@ -37,13 +37,13 @@ const Contacts = () => {
     (async () => {
       try {
         if (!user || !user.id) return;
-        const { data, error } = await supabase.from('contacts').select('id, contact_user_id, name, address, email, label, public_key, created_at').eq('user_id', user.id).order('created_at', { ascending: false });
-        if (error) {
-          console.warn('failed to load contacts', error);
+        const response = await getContacts();
+        if (!response.ok) {
+          console.warn('failed to load contacts', response.error);
           return;
         }
         if (!mounted) return;
-        setContacts((data as any[]) || []);
+        setContacts(response.data?.contacts || []);
       } catch (e) {
         console.error('contacts load error', e);
       }
@@ -57,16 +57,12 @@ const Contacts = () => {
       if (!newContact.email) return alert('Enter the user email to verify');
       if (!newContact.publicKey) return alert('Enter the receiver public key');
 
-      // Verify that a profile with this email exists
-      const { data: profiles, error: profileErr } = await supabase.from('profiles').select('id, first_name, last_name, email, public_key').eq('email', newContact.email).limit(1);
-      if (profileErr) {
-        console.error('profiles query failed', profileErr);
-        return alert('Failed to verify user: ' + profileErr.message);
-      }
-      if (!profiles || (profiles as any).length === 0) {
+      // Verify that a profile with this email exists by calling the profile search endpoint
+      const searchRes = await apiFetch(`/api/profile/search?email=${encodeURIComponent(newContact.email)}`);
+      if (!searchRes.ok || !searchRes.data?.profile) {
         return alert('No user with that email found in the system');
       }
-      const prof = (profiles as any)[0];
+      const prof = searchRes.data.profile;
 
       // Minimal public key check (best-effort)
       let walletMatches = true;
@@ -112,13 +108,20 @@ const Contacts = () => {
         public_key: publicKeyVal,
       };
 
-      const { data: inserted, error: insertErr } = await supabase.from('contacts').insert([insertObj]).select('id, name, address, email, label, public_key, contact_user_id, created_at').limit(1);
-      if (insertErr) {
-        console.error('contacts insert failed', insertErr);
-        return alert('Failed to add contact: ' + insertErr.message);
+      const response = await createContact({
+        name: displayName,
+        address: newContact.address || newContact.publicKey,
+        email: prof.email,
+        label: newContact.label || undefined,
+        public_key: JSON.stringify(publicKeyVal),
+      });
+
+      if (!response.ok) {
+        console.error('contacts insert failed', response.error);
+        return alert('Failed to add contact: ' + response.error);
       }
 
-      setContacts([...(contacts || []), (inserted as any)[0]]);
+      setContacts([...(contacts || []), response.data?.contact]);
       setNewContact({ name: '', address: '', email: '', label: '', publicKey: '' });
       setIsAddModalOpen(false);
     } catch (err) {
@@ -130,10 +133,10 @@ const Contacts = () => {
   const handleDeleteContact = async (id: number | string) => {
     if (!confirm('Are you sure you want to delete this contact?')) return;
     try {
-      const { error } = await supabase.from('contacts').delete().eq('id', id);
-      if (error) {
-        console.error('delete contact failed', error);
-        return alert('Failed to delete contact: ' + error.message);
+      const response = await deleteContact(Number(id));
+      if (!response.ok) {
+        console.error('delete contact failed', response.error);
+        return alert('Failed to delete contact: ' + response.error);
       }
       setContacts(contacts.filter(c => c.id !== id));
     } catch (e) {
@@ -277,24 +280,26 @@ const Contacts = () => {
                 let senderThumb: string | null = null;
                 let recipientThumb: string | null = null;
                 try {
-                  const { data: myProf } = await supabase.from('profiles').select('public_key').eq('id', user.id).limit(1);
-                  if (myProf && (myProf as any).length) senderThumb = (myProf as any)[0]?.public_key?.thumbprint || null;
+                  const profRes = await getProfile();
+                  if (profRes.ok && profRes.data?.profile) {
+                    senderThumb = profRes.data.profile.public_key?.thumbprint || null;
+                  }
                 } catch (e) { /* ignore */ }
 
                 let recipientProfileId: string | null = null;
                 try {
                   // If the contact references a profile id, fetch its thumbprint
                   if ((sendTarget as any)?.contact_user_id) {
-                    const { data: recProf } = await supabase.from('profiles').select('id, public_key').eq('id', (sendTarget as any).contact_user_id).limit(1);
-                    if (recProf && (recProf as any).length) {
-                      recipientThumb = (recProf as any)[0]?.public_key?.thumbprint || null;
-                      recipientProfileId = (recProf as any)[0]?.id || null;
+                    const profRes = await apiFetch(`/api/profile/search?id=${encodeURIComponent((sendTarget as any).contact_user_id)}`);
+                    if (profRes.ok && profRes.data?.profile) {
+                      recipientThumb = profRes.data.profile.public_key?.thumbprint || null;
+                      recipientProfileId = profRes.data.profile.id || null;
                     }
                   } else if ((sendTarget as any)?.email) {
-                    const { data: recProf } = await supabase.from('profiles').select('id, public_key').eq('email', (sendTarget as any).email).limit(1);
-                    if (recProf && (recProf as any).length) {
-                      recipientThumb = (recProf as any)[0]?.public_key?.thumbprint || null;
-                      recipientProfileId = (recProf as any)[0]?.id || null;
+                    const profRes = await apiFetch(`/api/profile/search?email=${encodeURIComponent((sendTarget as any).email)}`);
+                    if (profRes.ok && profRes.data?.profile) {
+                      recipientThumb = profRes.data.profile.public_key?.thumbprint || null;
+                      recipientProfileId = profRes.data.profile.id || null;
                     }
                   } else if ((sendTarget as any)?.public_key) {
                     recipientThumb = (sendTarget as any)?.public_key?.thumbprint || null;
@@ -319,8 +324,10 @@ const Contacts = () => {
                   // compute global previous_hash (across all users) so encryption/salt chaining is global
                   let previous_hash: string | null = null;
                   try {
-                    const { data: last, error: lastErr } = await supabase.from('blocks').select('hash').order('id', { ascending: false }).limit(1);
-                    if (!lastErr && last && (last as any).length) previous_hash = (last as any)[0].hash;
+                    const blocksRes = await getBlocks();
+                    if (blocksRes.ok && blocksRes.data?.blocks?.length) {
+                      previous_hash = blocksRes.data.blocks[0].hash;
+                    }
                   } catch (e) { /* ignore */ }
 
                   // Use the previous_hash as salt when encrypting (if present)
@@ -332,12 +339,11 @@ const Contacts = () => {
                   if (recipientThumb) public_summary.to_thumbprint = recipientThumb;
                   if (senderThumb) public_summary.from_thumbprint = senderThumb;
 
-                  const { error } = await supabase.from('blocks').insert([
-                    { data: { public_summary, encrypted_blob: encrypted, user_id: user.id }, previous_hash, hash, user_id: user.id }
-                  ]);
-                  if (error) {
-                    console.error('send insert error', error);
-                    return alert('Failed to send: ' + error.message);
+                  const blockData = JSON.stringify({ public_summary, encrypted_blob: encrypted, user_id: user.id });
+                  const blockRes = await createBlock(blockData, previous_hash || undefined);
+                  if (!blockRes.ok) {
+                    console.error('send insert error', blockRes.error);
+                    return alert('Failed to send: ' + blockRes.error);
                   }
 
                   // store session key for convenience

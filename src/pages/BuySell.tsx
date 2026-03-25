@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ArrowRightLeft, TrendingUp, TrendingDown, AlertCircle } from 'lucide-react';
-import { supabase } from '../supabase';
+import { getBlocks, getProfile, createBlock } from '../lib/api';
 import { encryptJSONWithPassword, sha256Hex } from '../lib/crypto';
 import { getSymKey, setSymKey } from '../lib/symmetricSession';
 import { useNavigate } from 'react-router-dom';
@@ -162,12 +162,10 @@ const BuySell = () => {
     // compute global previous_hash (across all users) so encryption can be chained globally
     let previous_hash: string | null = null;
     try {
-      const { data: last, error: lastErr } = await supabase
-        .from('blocks')
-        .select('hash')
-        .order('id', { ascending: false })
-        .limit(1);
-      if (!lastErr && last && (last as any).length > 0) previous_hash = (last as any)[0].hash;
+      const blocksRes = await getBlocks();
+      if (blocksRes.ok && blocksRes.data?.blocks?.length > 0) {
+        previous_hash = blocksRes.data.blocks[0].hash;
+      }
     } catch (e) {
       console.warn('failed to query last block', e);
     }
@@ -185,18 +183,12 @@ const BuySell = () => {
       timestamp: payload.timestamp,
     };
 
-    const { error } = await supabase.from('blocks').insert([
-      {
-        data: { public_summary, encrypted_blob: encrypted, user_id: payload.user_id },
-        previous_hash,
-        hash,
-        user_id: payload.user_id, // top-level user_id for easier server-side querying and RLS
-      },
-    ]);
+    const blockData = JSON.stringify({ public_summary, encrypted_blob: encrypted, user_id: payload.user_id });
+    const blockRes = await createBlock(blockData, previous_hash || undefined);
 
-    if (error) {
-      console.error('failed to insert block', error);
-      alert('Failed to persist transaction: ' + error.message);
+    if (!blockRes.ok) {
+      console.error('failed to insert block', blockRes.error);
+      alert('Failed to persist transaction: ' + blockRes.error);
       return;
     }
     // navigate within SPA to transactions (avoid full reload which can drop auth)
@@ -209,8 +201,10 @@ const BuySell = () => {
     // Try to fetch current user's profile thumbprint to include as from_thumbprint
     let fromThumb: string | null = null;
     try {
-      const { data: profs } = await supabase.from('profiles').select('public_key').eq('id', user.id).limit(1);
-      if (profs && (profs as any).length) fromThumb = (profs as any)[0]?.public_key?.thumbprint || null;
+      const profRes = await getProfile();
+      if (profRes.ok && profRes.data?.profile) {
+        fromThumb = profRes.data.profile.public_key?.thumbprint || null;
+      }
     } catch (e) {
       // ignore — optional
     }

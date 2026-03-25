@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Search, Download, ArrowUpRight, ArrowDownLeft, RefreshCw } from 'lucide-react';
-import { supabase } from '../supabase';
+import { getBlocks, getProfile, apiFetch } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 import { decryptJSONWithPassword } from '../lib/crypto';
 import { setSymKey, getSymKey } from '../lib/symmetricSession';
@@ -27,27 +27,20 @@ const Transactions = () => {
       let currentThumb: string | null = null;
       try {
         if (user && user.id) {
-          const { data: profs } = await supabase.from('profiles').select('public_key').eq('id', user.id).limit(1);
-          if (profs && (profs as any).length) {
-            currentThumb = (profs as any)[0]?.public_key?.thumbprint || null;
+          const profRes = await getProfile();
+          if (profRes.ok && profRes.data?.profile) {
+            currentThumb = profRes.data.profile.public_key?.thumbprint || null;
           }
         }
       } catch (e) { /* ignore */ }
       try {
-        // We'll try to query by a top-level `user_id` column first (preferred),
-        // and fall back to the JSON `data->>user_id` path if the column doesn't exist
-        let data: any = null;
-        let error: any = null;
-  const baseSelect = () => supabase.from('blocks').select('id, data, hash, previous_hash, created_at, user_id').order('id', { ascending: false }).limit(100);
-
-        // Central transaction page: load the most recent blocks globally (not per-user)
-        const all = await baseSelect();
-        data = all.data;
-        error = all.error;
-        if (error) {
-          console.error('Failed to fetch blocks', error);
+        // Load the most recent blocks globally (not per-user)
+        const blocksRes = await getBlocks();
+        if (!blocksRes.ok) {
+          console.error('Failed to fetch blocks', blocksRes.error);
           return;
         }
+        const data = blocksRes.data?.blocks || [];
         if (!mounted || !data) return;
         // Map each block to a display transaction using data.public_summary when present
         // First, build a map of thumbprint -> profile id for any thumbprints mentioned in the fetched blocks
@@ -59,14 +52,12 @@ const Transactions = () => {
         let thumbToProfile: Record<string, string> = {};
         if (thumbprints.length > 0) {
           try {
-            // Try to resolve thumbprints to profile ids in a single query. If the driver doesn't support JSON->>in for .in(),
-            // this may fail; wrap in try/catch and ignore on failure.
-            const { data: profs } = await supabase.from('profiles').select('id, public_key').in('public_key->>thumbprint', thumbprints as any[]);
-            if (profs && (profs as any).length) {
-              (profs as any).forEach((p: any) => {
-                const tp = p?.public_key?.thumbprint;
-                if (tp) thumbToProfile[tp] = p.id;
-              });
+            // Try to resolve thumbprints to profile ids - we'll try each one
+            for (const tp of thumbprints as string[]) {
+              const profRes = await apiFetch(`/api/profile/search?thumbprint=${encodeURIComponent(tp)}`);
+              if (profRes.ok && (profRes.data as any)?.profile) {
+                thumbToProfile[tp] = (profRes.data as any).profile.id;
+              }
             }
           } catch (e) {
             // ignore lookup failures; we'll still match by myThumbprint or user_id

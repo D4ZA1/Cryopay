@@ -5,7 +5,7 @@ import { ArrowUp, ArrowUpRight, ArrowDownLeft, Copy } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { useEffect, useState } from 'react';
-import { supabase } from '../supabase';
+import { getBlocks } from '../lib/api';
 
 const Dashboard = () => {
   const isNonCustodial = true;
@@ -21,17 +21,13 @@ const Dashboard = () => {
       if (!user) return;
       setLoading(true);
       try {
-        const { data, error } = await supabase
-          .from('blocks')
-          .select('data')
-          .eq('user_id', user.id)
-          .order('id', { ascending: false })
-          .limit(6);
-        if (error) {
-          console.warn('failed to fetch recent blocks', error);
+        const response = await getBlocks();
+        if (!response.ok) {
+          console.warn('failed to fetch recent blocks', response.error);
           setRecentTx([]);
         } else {
-          setRecentTx((data as any) || []);
+          const userBlocks = (response.data?.blocks || []).filter((b: any) => b.user_id === user.id);
+          setRecentTx(userBlocks.slice(0, 6));
         }
       } catch (e) {
         console.warn('recent tx fetch error', e);

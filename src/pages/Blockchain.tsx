@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { supabase } from '../supabase';
+import { getBlocks } from '../lib/api';
 
 const Blockchain: React.FC = () => {
   const [blocks, setBlocks] = useState<any[]>([]);
@@ -8,12 +8,12 @@ const Blockchain: React.FC = () => {
   useEffect(() => {
     (async () => {
       setLoading(true);
-      const { data, error } = await supabase.from('blocks').select('*').order('created_at', { ascending: false });
-      if (error) {
-        console.error('Failed to fetch blocks', error);
+      const response = await getBlocks();
+      if (!response.ok) {
+        console.error('Failed to fetch blocks', response.error);
         setBlocks([]);
       } else {
-        setBlocks(data || []);
+        setBlocks(response.data?.blocks || []);
       }
       setLoading(false);
     })();

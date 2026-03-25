@@ -13,6 +13,9 @@ import Transactions from './pages/Transactions';
 import Contacts from './pages/Contacts';
 import Settings from './pages/Settings';
 import BuySell from './pages/BuySell';
+import Wallet from './pages/Wallet';
+import ConfirmKey from './pages/ConfirmKey';
+import Blockchain from './pages/Blockchain';
 import AuthenticatedLayout from './layouts/AuthenticatedLayout';
 // Wallet, confirm-key and blockchain pages removed per current requirements
 
@@ -37,7 +40,9 @@ function App() {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/transactions" element={<Transactions />} />
           <Route path="/contacts" element={<Contacts />} />
-          {/* wallet, confirm-key and blockchain routes removed */}
+          <Route path="/wallet" element={<Wallet />} />
+          <Route path="/confirm-key" element={<ConfirmKey />} />
+          <Route path="/blockchain" element={<Blockchain />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/buy-sell" element={<BuySell />} />
         </Route>

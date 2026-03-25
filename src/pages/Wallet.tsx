@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { supabase } from '../supabase';
+import { apiFetch, saveWallet } from '../lib/api';
 import { generateKeyPair, exportJwk, encryptJwkWithPassword, jwkThumbprint } from '../lib/crypto';
 
 const Wallet: React.FC = () => {
@@ -39,22 +39,38 @@ const Wallet: React.FC = () => {
       const encrypted = await encryptJwkWithPassword(priv, password);
       const publicKey = publicJwk || (await exportJwk(await (await generateKeyPair()).publicKey));
 
-      setStatus('Saving to Supabase...');
-      const { error } = await supabase.from('wallets').upsert(
-        {
-          user_id: user.id,
-          public_key: publicKey,
-          encrypted_private_key: encrypted,
-          verified: false,
-        },
-        { onConflict: 'user_id' }
-      );
+      setStatus('Saving to Worker API...');
+      // Save to wallet table
+      const publicKeyStr = JSON.stringify(publicJwk);
+      const encryptedStr = JSON.stringify(encrypted);
+      console.log('[Wallet] saving to wallet API:', { publicKeyStr: publicKeyStr.substring(0, 50) + '...', encryptedPresent: !!encryptedStr });
+      const response = await saveWallet(publicKeyStr, encryptedStr, false);
+      console.log('[Wallet] wallet save response:', response);
 
-      if (error) {
-        console.error('supabase upsert error', error);
-        setStatus('Failed to save wallet: ' + error.message);
+      if (!response.ok) {
+        console.error('wallet save error', response.error);
+        setStatus('Failed to save wallet: ' + response.error);
         return;
       }
+
+      // Also save to profile table
+      if (publicJwk) {
+        const thumbprint = await jwkThumbprint(publicJwk);
+        const publicKeyWithThumb = { jwk: publicJwk, thumbprint };
+        console.log('[Wallet] saving to profile API:', { publicKeyPreview: JSON.stringify(publicKeyWithThumb).substring(0, 50) + '...', encryptedPresent: !!encryptedStr });
+        const profileRes = await apiFetch('/api/profile', {
+          method: 'PUT',
+          body: JSON.stringify({ 
+            public_key: JSON.stringify(publicKeyWithThumb),
+            encrypted_private_key: encryptedStr
+          }),
+        });
+        console.log('[Wallet] profile save response:', profileRes);
+        if (!profileRes.ok) {
+          console.warn('profile update failed', profileRes.error);
+        }
+      }
+
       await refreshUser();
       setStatus('Wallet saved (encrypted). You can now confirm ownership on Confirm Key page.');
       // Clear in-memory private key

@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from 'lucide-react';
-import { supabase } from '../supabase';
+import { apiFetch, login } from '../lib/api';
 
 interface EmailOtpModalProps {
   isOpen: boolean;
@@ -27,9 +27,12 @@ const EmailOtpModal = ({ isOpen, onClose, userEmail, onVerified }: EmailOtpModal
     setIsLoading(true);
     try {
       console.log('[EmailOtpModal] sending magic link / OTP to', userEmail);
-  const redirectTo = `${window.location.origin}/`;
-  const { error } = await supabase.auth.signInWithOtp({ email: userEmail, options: { emailRedirectTo: redirectTo } });
-  if (error) throw error;
+      // Use Worker API to send magic link
+      const res = await apiFetch('/api/auth/send-otp', {
+        method: 'POST',
+        body: JSON.stringify({ email: userEmail }),
+      });
+      if (!res.ok) throw new Error(res.error || 'Failed to send OTP');
       setLastSentAt(Date.now());
       setSecondsLeft(RESEND_COOLDOWN);
     } catch (err: any) {
@@ -40,12 +43,12 @@ const EmailOtpModal = ({ isOpen, onClose, userEmail, onVerified }: EmailOtpModal
     }
   };
 
-  // Poll for session: if user clicked the magic link, supabase will have a session
+  // Poll for session: check for token in localStorage after user clicks the magic link
   const checkSession = async () => {
     try {
-      const { data } = await supabase.auth.getSession();
-      const session = (data as any)?.session;
-      if (session) {
+      // Check if we have a token in localStorage (set by the Worker API after magic link is clicked)
+      const token = localStorage.getItem('cryopay_token');
+      if (token) {
         // Avoid multiple invocations if polling races
         if (doneRef.current) return;
         doneRef.current = true;
@@ -120,7 +123,7 @@ const EmailOtpModal = ({ isOpen, onClose, userEmail, onVerified }: EmailOtpModal
         </DialogHeader>
         <div className="flex flex-col items-center gap-4 py-4">
           <div className="w-full space-y-2">
-            <p className="text-sm text-slate-600 text-center">Check your inbox for an email from Supabase. If you don't see it, check your spam folder.</p>
+            <p className="text-sm text-slate-600 text-center">Check your inbox for an email from CryoPay. If you don't see it, check your spam folder.</p>
             {lastSentAt && <p className="text-xs text-slate-400 text-center">Last sent: {new Date(lastSentAt).toLocaleTimeString()}</p>}
             {error && <p className="text-sm text-red-600 text-center">{error}</p>}
           </div>

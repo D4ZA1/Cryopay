@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Separator } from "@/components/ui/separator";
 import { User, Shield, Bell, Wallet, Globe } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { supabase } from '../supabase';
+import { getProfile, updateProfile, apiFetch } from '../lib/api';
 import { useNavigate } from 'react-router-dom';
 
 const Settings = () => {
@@ -41,36 +41,35 @@ const Settings = () => {
   useEffect(() => {
     (async () => {
       try {
-        // Load full user info from Supabase
-        const { data } = await supabase.auth.getUser();
-        const supUser = (data as any)?.user;
-        if (supUser) {
+        // Load full user info from Worker API
+        const profRes = await getProfile();
+        if (profRes.ok && profRes.data?.profile) {
+          const prof = profRes.data.profile;
           setProfile({
-            firstName: (supUser.user_metadata as any)?.firstName || (user?.firstName ?? ''),
-            lastName: (supUser.user_metadata as any)?.lastName || '',
-            email: supUser.email || '',
-            phone: (supUser.user_metadata as any)?.phone || '',
+            firstName: prof.first_name || user?.firstName || '',
+            lastName: prof.last_name || '',
+            email: prof.email || '',
+            phone: prof.phone || '',
           });
 
-          // load notifications from metadata if present
-          const meta = (supUser.user_metadata as any) || {};
-          if (meta.notifications) {
+          // load notifications from profile if present
+          if (prof.notifications) {
             setNotifications({
-              emailNotifications: !!meta.notifications.emailNotifications,
-              transactionAlerts: !!meta.notifications.transactionAlerts,
-              weeklyReports: !!meta.notifications.weeklyReports,
-              marketingEmails: !!meta.notifications.marketingEmails,
+              emailNotifications: !!prof.notifications.emailNotifications,
+              transactionAlerts: !!prof.notifications.transactionAlerts,
+              weeklyReports: !!prof.notifications.weeklyReports,
+              marketingEmails: !!prof.notifications.marketingEmails,
             });
           }
 
-          // check TOTP factor presence
+          // check if MFA is enabled via the auth API
           try {
-            // @ts-ignore experimental API
-            const factors = await supabase.auth.mfa.listFactors();
-            const hasTotp = !!factors?.data?.totp?.length;
-            setSecurity((s) => ({ ...s, twoFactorEnabled: !!hasTotp }));
+            const mfaRes = await apiFetch('/api/auth/mfa-status');
+            if (mfaRes.ok && mfaRes.data) {
+              setSecurity((s) => ({ ...s, twoFactorEnabled: !!mfaRes.data.enabled }));
+            }
           } catch (err) {
-            console.warn('[Settings] could not read MFA factors', err);
+            console.warn('[Settings] could not read MFA status', err);
           }
         }
       } catch (e) {
@@ -83,76 +82,26 @@ const Settings = () => {
     setIsSavingProfile(true);
     setMessage(null);
     try {
-      const metaUpdate: any = {
-        ...(profile.firstName ? { firstName: profile.firstName } : {}),
-        ...(profile.lastName ? { lastName: profile.lastName } : {}),
-        ...(profile.phone ? { phone: profile.phone } : {}),
-      };
+      const updateRes = await updateProfile({
+        first_name: profile.firstName || undefined,
+        last_name: profile.lastName || undefined,
+        phone: profile.phone || undefined,
+      });
 
-      // First try the common v2 shape (user_metadata) then fall back to data if necessary.
-      let updateError: any = null;
-      let updatedUser: any = null;
-      let updateResponse: any = null;
-      try {
-        // @ts-ignore
-        const res = await supabase.auth.updateUser({ user_metadata: metaUpdate, ...(profile.email ? { email: profile.email } : {}) });
-        updateResponse = res;
-        if ((res as any).error) throw (res as any).error;
-        updatedUser = (res as any).data?.user || (res as any).user || null;
-      } catch (e1) {
-        console.warn('[Settings] updateUser with user_metadata failed, trying data key', e1);
-        try {
-          // @ts-ignore
-          const res2 = await supabase.auth.updateUser({ data: metaUpdate, ...(profile.email ? { email: profile.email } : {}) });
-          updateResponse = res2;
-          if ((res2 as any).error) throw (res2 as any).error;
-          updatedUser = (res2 as any).data?.user || (res2 as any).user || null;
-        } catch (e2) {
-          updateError = e2;
-        }
+      if (!updateRes.ok) {
+        throw new Error(updateRes.error || 'Failed to update profile');
       }
 
-      if (updateError) throw updateError;
-
-      // We now store profile data in the Supabase Auth user metadata only.
-
-  // If the update call returned a user object, use it to immediately reflect updated metadata
-      if (updatedUser) {
-        try {
-          setProfile({
-            firstName: (updatedUser.user_metadata as any)?.firstName || (user?.firstName ?? ''),
-            lastName: (updatedUser.user_metadata as any)?.lastName || '',
-            email: updatedUser.email || '',
-            phone: (updatedUser.user_metadata as any)?.phone || '',
-          });
-        } catch (e) {
-          console.warn('[Settings] could not set profile from update response', e);
-        }
-      } else {
-        try {
-          const getUserRes = await supabase.auth.getUser();
-          setLastGetUserResponse(getUserRes);
-          const supUser = (getUserRes as any)?.data?.user;
-          // if getUser returned null, also capture session for diagnosis
-          if (!supUser) {
-            try {
-              const sessionRes = await supabase.auth.getSession();
-              setLastGetUserResponse({ getUser: getUserRes, session: sessionRes });
-            } catch (e) {
-              // ignore
-            }
-          }
-          if (supUser) {
-            setProfile({
-              firstName: (supUser.user_metadata as any)?.firstName || (user?.firstName ?? ''),
-              lastName: (supUser.user_metadata as any)?.lastName || '',
-              email: supUser.email || '',
-              phone: (supUser.user_metadata as any)?.phone || '',
-            });
-          }
-        } catch (e) {
-          console.warn('[Settings] could not reload user after update', e);
-        }
+      // Refresh profile data
+      const profRes = await getProfile();
+      if (profRes.ok && profRes.data?.profile) {
+        const prof = profRes.data.profile;
+        setProfile({
+          firstName: prof.first_name || '',
+          lastName: prof.last_name || '',
+          email: prof.email || '',
+          phone: prof.phone || '',
+        });
       }
 
       // also refresh the global auth context user so headers/navigation update
@@ -163,8 +112,6 @@ const Settings = () => {
       }
 
       setMessage('Profile updated successfully');
-      // record last responses for debugging
-      setLastUpdateResponse(updateResponse || null);
     } catch (e: any) {
       console.error('[Settings] saveProfile error', e);
       setMessage(e?.message || String(e));
@@ -177,14 +124,12 @@ const Settings = () => {
     setIsSavingNotifications(true);
     setMessage(null);
     try {
-      // merge notifications into user_metadata
-      const { data } = await supabase.auth.getUser();
-      const supUser = (data as any)?.user;
-      const meta = (supUser?.user_metadata as any) || {};
-      const newMeta = { ...meta, notifications };
-      // @ts-ignore
-      const { error } = await supabase.auth.updateUser({ user_metadata: newMeta });
-      if (error) throw error;
+      const updateRes = await updateProfile({
+        notifications: JSON.stringify(notifications),
+      });
+      if (!updateRes.ok) {
+        throw new Error(updateRes.error || 'Failed to save notifications');
+      }
       setMessage('Notification preferences saved');
     } catch (e: any) {
       console.error('[Settings] saveNotifications error', e);
@@ -338,9 +283,11 @@ const Settings = () => {
                 const el = document.getElementById('newPassword') as HTMLInputElement | null;
                 if (!el || !el.value) return setMessage('Please enter a new password');
                 try {
-                  // @ts-ignore
-                  const { error } = await supabase.auth.updateUser({ password: el.value });
-                  if (error) throw error;
+                  const pwRes = await apiFetch('/api/auth/change-password', {
+                    method: 'POST',
+                    body: JSON.stringify({ password: el.value }),
+                  });
+                  if (!pwRes.ok) throw new Error(pwRes.error || 'Failed to update password');
                   setMessage('Password updated successfully');
                   el.value = '';
                 } catch (e: any) {

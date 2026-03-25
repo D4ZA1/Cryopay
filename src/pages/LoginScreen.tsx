@@ -6,8 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Mail, Lock, Eye, EyeOff, Wallet, Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { supabase } from '../supabase';
-import TwoFactorAuthModal from '@/components/TwoFactorAuthModal';
+import { apiFetch } from '../lib/api';
 
 const CryoPayLogo = () => ( <div className="text-2xl font-bold tracking-tighter">Cryo<span className="text-slate-500">Pay</span></div> );
 
@@ -18,13 +17,6 @@ const LoginScreen = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   
-  // 2FA Modal state
-  const [show2FAModal, setShow2FAModal] = useState(false);
-  // legacy two-factor input removed — we use the dedicated TwoFactorAuthModal component
-  const [pendingSession, setPendingSession] = useState<any>(null);
-  const [pendingUser, setPendingUser] = useState<any>(null);
-  const [pendingFactorId, setPendingFactorId] = useState<string | undefined>(undefined);
-  
   const navigate = useNavigate();
   const { login } = useAuth();
 
@@ -34,65 +26,33 @@ const LoginScreen = () => {
     setError('');
 
     try {
-      console.log('[LoginScreen] signing in with supabase');
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) {
-        console.error('[LoginScreen] signIn error', error);
-        throw error;
+      console.log('[LoginScreen] signing in with Worker API');
+      const response = await apiFetch('/api/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ email, password }),
+      });
+      
+      if (!response.ok) {
+        console.error('[LoginScreen] login error', response.error);
+        throw new Error(response.error || 'Login failed');
       }
-      console.log('[LoginScreen] signIn success', data);
-      const session = (data as any)?.session;
-      const user = (data as any)?.user;
-      // If there's no session or user returned, block and instruct the user (likely needs email confirmation)
-      if (!session || !user) {
-        setError('No active session was returned. If you recently created your account, please check your email for a confirmation link.');
+      
+      console.log('[LoginScreen] login success', response.data);
+      const { token, user } = response.data;
+      
+      if (!token || !user) {
+        setError('Invalid response from server');
         return;
       }
 
-      // Store pending session/user until MFA verification completes (used if we need to challenge)
-      setPendingSession(session);
-      setPendingUser(user);
-
-      // Try to check for TOTP factor and AAL; if checks fail or there's no TOTP, do NOT force MFA setup — allow login.
-      try {
-        // @ts-ignore experimental API
-        const factorsCheck = await supabase.auth.mfa.listFactors();
-        console.log('[LoginScreen] initial listFactors', factorsCheck);
-        const totp = factorsCheck?.data?.totp?.[0];
-
-        if (!totp) {
-          // Allow login even if no TOTP is configured; warn the user but don't block.
-          console.warn('[LoginScreen] no TOTP factor configured; allowing login but recommend enabling MFA');
-          login(session.access_token, { id: user.id, firstName: (user.user_metadata as any)?.firstName || user.email });
-          navigate('/dashboard');
-          return;
-        }
-
-        // Check whether we need an MFA challenge to reach AAL2. If required, start a TOTP challenge.
-        // @ts-ignore experimental API
-        const aal = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-        console.log('[LoginScreen] getAuthenticatorAssuranceLevel', aal);
-        const current = aal.data?.currentLevel;
-        const next = aal.data?.nextLevel;
-
-        if (next === 'aal2' && current !== 'aal2') {
-          setPendingFactorId(totp.id);
-          setShow2FAModal(true);
-          return; // wait for verification
-        }
-
-        // Otherwise complete login
-        login(session.access_token, { id: user.id, firstName: (user.user_metadata as any)?.firstName || user.email });
-        navigate('/dashboard');
-
-      } catch (err) {
-        console.error('[LoginScreen] error checking factors / AAL', err);
-        // If we can't check factors for some reason, allow login but show a warning
-        setError('Could not verify your MFA setup. You can continue but please enable an authenticator app in Settings.');
-        login(session.access_token, { id: user.id, firstName: (user.user_metadata as any)?.firstName || user.email });
-        navigate('/dashboard');
-        return;
-      }
+      // Complete login with token and user data
+      login(token, { 
+        id: user.id, 
+        firstName: user.first_name || user.email,
+        lastName: user.last_name,
+        email: user.email,
+      });
+      navigate('/dashboard');
 
     } catch (err: any) {
       setError(err.message);
@@ -100,8 +60,6 @@ const LoginScreen = () => {
       setIsLoading(false);
     }
   };
-
-  // old inline 2FA handler removed; verification is handled by the TOTP modal component
 
   return (
     <>
@@ -177,28 +135,6 @@ const LoginScreen = () => {
           <p>Don't have an account? <Link to="/onboarding" className="font-semibold text-slate-800 hover:underline">Sign Up</Link></p>
         </footer>
       </div>
-
-      {/* 2FA Modals */}
-      <TwoFactorAuthModal
-        isOpen={show2FAModal}
-        onClose={() => setShow2FAModal(false)}
-        enroll={false}
-        factorId={pendingFactorId}
-        onVerified={async () => {
-          // After TOTP verification, complete login using the pending session
-          if (pendingSession && pendingUser) {
-            try {
-              login(pendingSession.access_token, { id: pendingUser.id, firstName: (pendingUser.user_metadata as any)?.firstName || pendingUser.email });
-            } catch (e) {
-              console.error('[LoginScreen] error completing login after MFA', e);
-            }
-          }
-          setShow2FAModal(false);
-          navigate('/dashboard');
-        }}
-      />
-
-      {/* Email magic-link path removed: app now requires TOTP MFA only. */}
     </>
   );
 };
