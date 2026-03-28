@@ -140,6 +140,17 @@ const SecureWalletScreen = () => {
   // Email magic-link option removed; TOTP is optional. Allow finish without MFA.
 
   const handleFinish = async () => {
+    // Validate that encryption password is provided before proceeding
+    if (!encryptionPassword) {
+      setError('Please enter an encryption password to secure your private key before proceeding');
+      return;
+    }
+    
+    if (!generatedPrivateJwk) {
+      setError('No private key available. Please refresh the page and try again.');
+      return;
+    }
+    
     try {
       // Get current user from profile API
       let userId: string | null = null;
@@ -161,6 +172,8 @@ const SecureWalletScreen = () => {
             encryptedPrivateKey = JSON.stringify(encrypted);
           } catch (e) {
             console.warn('encrypt private jwk for profile failed', e);
+            setError('Failed to encrypt private key. Please try again.');
+            return;
           }
         }
         const updErr = await apiFetch('/api/profile', {
@@ -171,7 +184,11 @@ const SecureWalletScreen = () => {
           }),
         });
         console.log('[SecureWallet] profile update result:', updErr);
-        if (!updErr.ok) console.warn('failed to persist keys to profile', updErr.error);
+        if (!updErr.ok) {
+          console.warn('failed to persist keys to profile', updErr.error);
+          setError('Failed to save wallet to profile: ' + updErr.error);
+          return;
+        }
       }
 
       // Also save to wallet table so other users can discover public_key by email
@@ -189,7 +206,10 @@ const SecureWalletScreen = () => {
           const publicKeyStr = generatedPublicJwk ? JSON.stringify({ jwk: generatedPublicJwk, thumbprint: displayAddress }) : undefined;
           const walletRes = await saveWallet(publicKeyStr || '', encryptedPrivate ? JSON.stringify(encryptedPrivate) : '', false);
           console.log('[SecureWallet] wallet save result:', walletRes);
-          if (!walletRes.ok) console.warn('wallet save failed', walletRes.error);
+          if (!walletRes.ok) {
+            console.warn('wallet save failed', walletRes.error);
+            // Note: We continue even if wallet save fails, as profile update succeeded
+          }
         } catch (e) {
           console.warn('wallet save unexpected error', e);
         }
@@ -223,6 +243,8 @@ const SecureWalletScreen = () => {
       }
     } catch (e) {
       console.warn('persist public key failed', e);
+      setError('Failed to save wallet. Please try again.');
+      return;
     }
     navigate('/dashboard');
   };
@@ -277,8 +299,15 @@ const SecureWalletScreen = () => {
                     </div>
                     {/* Server-side wallet storage removed; user handles backups locally */}
                     <div>
-                      <Label className="block text-sm">Optional: encryption password to store the private key encrypted</Label>
-                      <input type="password" value={encryptionPassword} onChange={e => setEncryptionPassword(e.target.value)} className="mt-1 block w-full rounded border px-3 py-2" placeholder="Choose a password to encrypt your private key (recommended)" />
+                      <Label className="block text-sm font-semibold text-red-600">* Encryption password required to store the private key encrypted</Label>
+                      <input 
+                        type="password" 
+                        value={encryptionPassword} 
+                        onChange={e => setEncryptionPassword(e.target.value)} 
+                        className="mt-1 block w-full rounded border px-3 py-2 border-red-300 focus:border-red-500 focus:ring-1 focus:ring-red-500" 
+                        placeholder="Enter a password to encrypt your private key (REQUIRED)" 
+                        required
+                      />
                     </div>
                     <div className="flex gap-2">
                       <button onClick={handleDownloadEncryptedBackup} className="btn btn-outline">Download Encrypted Backup</button>

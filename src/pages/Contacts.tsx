@@ -1,34 +1,102 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Search, Plus, Send, Edit, Trash2, User } from 'lucide-react';
-import { getContacts, createContact, deleteContact, getProfile, apiFetch, getBlocks, createBlock } from '../lib/api';
+import { getContacts, createContact, deleteContact, getProfile, apiFetch, getBlocks, createBlock, updateContact } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
-import { encryptJSONWithPassword, sha256Hex } from '../lib/crypto';
+import { encryptJSONWithPassword } from '../lib/crypto';
 import { setSymKey } from '../lib/symmetricSession';
-import { useEffect } from 'react';
+import { JWK } from '../types/schemas';
+
+/**
+ * Contact display type for UI rendering
+ * Extends ContactOutput with parsed public_key for easier access
+ */
+interface ContactDisplayItem {
+  id: number;
+  name: string;
+  address: string;
+  email?: string | null;
+  label?: string | null;
+  publicKey?: JWK | null;
+  contact_user_id?: string | null;
+  public_key?: JWK | { raw: string } | null;
+}
+
+/**
+ * New contact form state
+ */
+interface NewContactForm {
+  name: string;
+  address: string;
+  email: string;
+  label: string;
+  publicKey: string;
+}
+
+/**
+ * Send target for quick send modal
+ */
+interface SendTarget {
+  address: string;
+  email?: string | null;
+  contact_user_id?: string | null;
+  public_key?: JWK | { raw: string } | null;
+}
+
+/**
+ * Email validation regex pattern
+ */
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/**
+ * Validates email format
+ */
+const isValidEmail = (email: string): boolean => {
+  return EMAIL_REGEX.test(email);
+};
 
 // Start with an empty contacts list; contacts are added after verifying the target exists in `profiles`
 
 const Contacts = () => {
-  const [contacts, setContacts] = useState<any[]>([]);
+  const [contacts, setContacts] = useState<ContactDisplayItem[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [newContact, setNewContact] = useState({ name: '', address: '', email: '', label: '', publicKey: '' });
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingContact, setEditingContact] = useState<ContactDisplayItem | null>(null);
+  const [newContact, setNewContact] = useState<NewContactForm>({ name: '', address: '', email: '', label: '', publicKey: '' });
   const [isSendModalOpen, setIsSendModalOpen] = useState(false);
-  const [sendTarget, setSendTarget] = useState<any | null>(null);
+  const [sendTarget, setSendTarget] = useState<SendTarget | null>(null);
   const [sendAmount, setSendAmount] = useState('');
   const [sendCrypto, setSendCrypto] = useState('ETH');
   const [sendPassword, setSendPassword] = useState('');
+  // TODO: Connect to real price feed - currently using Binance API fallback
+  const [ethPrice, setEthPrice] = useState<number>(3000);
   const { user } = useAuth();
 
+  // Fetch real ETH price on mount
+  useEffect(() => {
+    const fetchEthPrice = async () => {
+      try {
+        const response = await fetch('https://api.binance.com/api/v3/ticker/price?symbol=ETHUSDT');
+        if (response.ok) {
+          const data = await response.json();
+          setEthPrice(parseFloat(data.price));
+        }
+      } catch (e) {
+        console.warn('Failed to fetch ETH price, using default');
+      }
+    };
+    fetchEthPrice();
+  }, []);
+
   const filteredContacts = contacts.filter(contact =>
-    contact.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    contact.address.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (contact.email && contact.email.toLowerCase().includes(searchTerm.toLowerCase()))
+    (contact?.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (contact?.address || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (contact?.email && contact.email.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   // Load contacts for signed-in user
@@ -55,6 +123,12 @@ const Contacts = () => {
     try {
       if (!user) return alert('You must be signed in to add a contact');
       if (!newContact.email) return alert('Enter the user email to verify');
+      
+      // Validate email format
+      if (!isValidEmail(newContact.email)) {
+        return alert('Please enter a valid email address');
+      }
+      
       if (!newContact.publicKey) return alert('Enter the receiver public key');
 
       // Verify that a profile with this email exists by calling the profile search endpoint
@@ -82,13 +156,13 @@ const Contacts = () => {
       const displayName = prof.first_name ? `${prof.first_name} ${prof.last_name || ''}`.trim() : newContact.name || prof.email;
 
       // Safely parse public key JSON; if it's not valid JSON, store as { raw: '<value>' }
-      let publicKeyVal: any = null;
+      let publicKeyVal: JWK | { raw: string } | null = null;
       if (newContact.publicKey) {
         try {
           // Attempt to parse if it looks like JSON
           const trimmed = newContact.publicKey.trim();
           if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
-            publicKeyVal = JSON.parse(trimmed);
+            publicKeyVal = JSON.parse(trimmed) as JWK;
           } else {
             // treat as a plain string/thumbprint
             publicKeyVal = { raw: newContact.publicKey };
@@ -97,16 +171,6 @@ const Contacts = () => {
           publicKeyVal = { raw: newContact.publicKey };
         }
       }
-
-      const insertObj = {
-        user_id: user.id,
-        contact_user_id: prof.id,
-        name: displayName,
-        address: newContact.address || newContact.publicKey,
-        email: prof.email,
-        label: newContact.label || null,
-        public_key: publicKeyVal,
-      };
 
       const response = await createContact({
         name: displayName,
@@ -142,6 +206,29 @@ const Contacts = () => {
     } catch (e) {
       console.error('delete failed', e);
       alert('Failed to delete contact');
+    }
+  };
+
+  const handleEditContact = async () => {
+    if (!editingContact) return;
+    try {
+      const response = await updateContact(Number(editingContact.id), {
+        name: editingContact.name,
+        address: editingContact.address,
+        label: editingContact.label || undefined,
+      });
+
+      if (!response.ok) {
+        console.error('update contact failed', response.error);
+        return alert('Failed to update contact: ' + response.error);
+      }
+
+      setContacts(contacts.map(c => c.id === editingContact.id ? { ...c, ...editingContact } : c));
+      setIsEditModalOpen(false);
+      setEditingContact(null);
+    } catch (e) {
+      console.error('update failed', e);
+      alert('Failed to update contact');
     }
   };
 
@@ -200,17 +287,17 @@ const Contacts = () => {
               <CardContent className="pt-6">
                 <div className="flex items-start gap-4">
                   <div className="w-12 h-12 rounded-full bg-slate-200 flex items-center justify-center text-slate-700 font-semibold flex-shrink-0">
-                    {getInitials(contact.name)}
+                    {getInitials(contact?.name || 'U')}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-slate-900 truncate">{contact.name}</h3>
-                    {contact.label && (
+                    <h3 className="font-semibold text-slate-900 truncate">{contact?.name || 'Unknown'}</h3>
+                    {contact?.label && (
                       <span className={`inline-block px-2 py-0.5 text-xs font-semibold rounded-full mt-1 ${getLabelColor(contact.label)}`}>
                         {contact.label}
                       </span>
                     )}
-                    <p className="text-xs text-slate-500 mt-2 break-all">{contact.address}</p>
-                    {contact.email && (
+                    <p className="text-xs text-slate-500 mt-2 break-all">{contact?.address || 'N/A'}</p>
+                    {contact?.email && (
                       <p className="text-xs text-slate-500 mt-1">{contact.email}</p>
                     )}
                     <div className="flex gap-2 mt-4">
@@ -222,7 +309,7 @@ const Contacts = () => {
                         <Send className="h-3 w-3 mr-1" />
                         Quick Send
                       </Button>
-                      <Button size="sm" variant="outline">
+                      <Button size="sm" variant="outline" onClick={() => { setEditingContact(contact); setIsEditModalOpen(true); }}>
                         <Edit className="h-3 w-3" />
                       </Button>
                       <Button 
@@ -315,7 +402,7 @@ const Contacts = () => {
                   to_thumbprint: recipientThumb,
                   crypto: sendCrypto,
                   amountFiat: parseFloat(sendAmount),
-                  amountCrypto: parseFloat((parseFloat(sendAmount) / 3000).toFixed(8)),
+                  amountCrypto: parseFloat((parseFloat(sendAmount) / ethPrice).toFixed(8)),
                   timestamp: new Date().toISOString(),
                   user_id: user.id,
                 };
@@ -332,9 +419,24 @@ const Contacts = () => {
 
                   // Use the previous_hash as salt when encrypting (if present)
                   const encrypted = await encryptJSONWithPassword(payload, sendPassword, previous_hash || undefined);
-                  const hash = await sha256Hex(encrypted.ciphertext);
+                  // Note: Block hash is computed server-side during createBlock
 
-                  const public_summary: any = { kind: 'tx', to: sendTarget.address, amountFiat: payload.amountFiat, amountCrypto: payload.amountCrypto };
+                  interface QuickSendPublicSummary {
+                    kind: 'tx';
+                    to: string;
+                    amountFiat: number;
+                    amountCrypto: number;
+                    to_user_id?: string;
+                    to_thumbprint?: string;
+                    from_thumbprint?: string;
+                  }
+
+                  const public_summary: QuickSendPublicSummary = { 
+                    kind: 'tx', 
+                    to: sendTarget.address, 
+                    amountFiat: payload.amountFiat, 
+                    amountCrypto: payload.amountCrypto 
+                  };
                   if (recipientProfileId) public_summary.to_user_id = recipientProfileId;
                   if (recipientThumb) public_summary.to_thumbprint = recipientThumb;
                   if (senderThumb) public_summary.from_thumbprint = senderThumb;
@@ -428,6 +530,62 @@ const Contacts = () => {
                 Add Contact
               </Button>
               <Button variant="outline" onClick={() => setIsAddModalOpen(false)}>
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Contact Modal */}
+      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Contact</DialogTitle>
+            <DialogDescription>
+              Update contact details
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-contact-name">Name *</Label>
+              <Input
+                id="edit-contact-name"
+                placeholder="John Doe"
+                value={editingContact?.name || ''}
+                onChange={(e) => editingContact && setEditingContact({...editingContact, name: e.target.value})}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-contact-address">Wallet Address</Label>
+              <Input
+                id="edit-contact-address"
+                placeholder="0x..."
+                value={editingContact?.address || ''}
+                onChange={(e) => editingContact && setEditingContact({...editingContact, address: e.target.value})}
+                disabled
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-contact-label">Label</Label>
+              <select
+                id="edit-contact-label"
+                value={editingContact?.label || ''}
+                onChange={(e) => editingContact && setEditingContact({...editingContact, label: e.target.value})}
+                className="w-full px-3 py-2 border border-slate-200 rounded-md"
+              >
+                <option value="">Select a label</option>
+                <option value="Friend">Friend</option>
+                <option value="Family">Family</option>
+                <option value="Merchant">Merchant</option>
+                <option value="Colleague">Colleague</option>
+              </select>
+            </div>
+            <div className="flex gap-2 pt-4">
+              <Button onClick={handleEditContact} className="flex-1">
+                Save Changes
+              </Button>
+              <Button variant="outline" onClick={() => { setIsEditModalOpen(false); setEditingContact(null); }}>
                 Cancel
               </Button>
             </div>

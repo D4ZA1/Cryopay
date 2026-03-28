@@ -6,17 +6,33 @@ const Blockchain: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let isMounted = true;
+    
     (async () => {
       setLoading(true);
-      const response = await getBlocks();
-      if (!response.ok) {
-        console.error('Failed to fetch blocks', response.error);
-        setBlocks([]);
-      } else {
-        setBlocks(response.data?.blocks || []);
+      try {
+        const response = await getBlocks();
+        if (isMounted) {
+          if (!response.ok) {
+            console.error('Failed to fetch blocks', response.error);
+            setBlocks([]);
+          } else {
+            setBlocks(response.data?.blocks || []);
+          }
+          setLoading(false);
+        }
+      } catch (error) {
+        if (isMounted) {
+          console.error('Failed to fetch blocks', error);
+          setBlocks([]);
+          setLoading(false);
+        }
       }
-      setLoading(false);
     })();
+    
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   return (

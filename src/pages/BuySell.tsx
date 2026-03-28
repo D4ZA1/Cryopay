@@ -10,6 +10,24 @@ import { getSymKey, setSymKey } from '../lib/symmetricSession';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import UnlockTransactionModal from '../components/UnlockTransactionModal';
+// Minimum transaction amounts
+const MIN_FIAT_AMOUNT = 1; // $1 minimum
+const MIN_CRYPTO_AMOUNT = 0.00000001; // Smallest crypto unit
+
+interface TransactionPayload {
+  kind: 'buy' | 'sell';
+  crypto: string;
+  fiatCurrency: string;
+  fiatSymbol: string;
+  amountFiat: number;
+  amountCrypto: number;
+  timestamp: string;
+  user_id: string;
+  from_user_id: string;
+  from_thumbprint: string | null;
+  to_user_id: string | null;
+  to_thumbprint: string | null;
+}
 
 const CURRENCIES = [
   { code: 'INR', symbol: '₹', name: 'Indian Rupee' },
@@ -45,7 +63,7 @@ const BuySell = () => {
   // Calculate conversion
   const handleAmountChange = (value: string) => {
     setAmount(value);
-    if (value && !isNaN(Number(value))) {
+    if (value && !isNaN(Number(value)) && selectedPrice > 0) {
       const crypto = (parseFloat(value) / selectedPrice).toFixed(8);
       setCryptoAmount(crypto);
     } else {
@@ -55,7 +73,7 @@ const BuySell = () => {
 
   const handleCryptoAmountChange = (value: string) => {
     setCryptoAmount(value);
-    if (value && !isNaN(Number(value))) {
+    if (value && !isNaN(Number(value)) && parseFloat(value) > 0) {
       const fiat = (parseFloat(value) * selectedPrice).toFixed(2);
       setAmount(fiat);
     } else {
@@ -156,7 +174,7 @@ const BuySell = () => {
 
   // pending payload is used when we need to request an unlock key first
   const [unlockOpen, setUnlockOpen] = useState(false);
-  const [pendingPayload, setPendingPayload] = useState<any | null>(null);
+  const [pendingPayload, setPendingPayload] = useState<TransactionPayload | null>(null);
 
   const proceedWithPayload = async (payload: any, password: string) => {
     // compute global previous_hash (across all users) so encryption can be chained globally
@@ -184,7 +202,7 @@ const BuySell = () => {
     };
 
     const blockData = JSON.stringify({ public_summary, encrypted_blob: encrypted, user_id: payload.user_id });
-    const blockRes = await createBlock(blockData, previous_hash || undefined);
+    const blockRes = await createBlock(blockData, previous_hash || null);
 
     if (!blockRes.ok) {
       console.error('failed to insert block', blockRes.error);
@@ -198,6 +216,32 @@ const BuySell = () => {
   const handleTransaction = async () => {
     if (!user) return alert('You must be signed in to create a transaction');
 
+    // Validate amounts
+    const fiatAmount = parseFloat(amount);
+    const cryptoAmt = parseFloat(cryptoAmount);
+
+    if (isNaN(fiatAmount) || fiatAmount <= 0) {
+      return alert('Please enter a valid fiat amount greater than 0');
+    }
+
+    if (isNaN(cryptoAmt) || cryptoAmt <= 0) {
+      return alert('Please enter a valid crypto amount greater than 0');
+    }
+
+    // Minimum amount validation
+    if (fiatAmount < MIN_FIAT_AMOUNT) {
+      return alert(`Minimum transaction amount is $${MIN_FIAT_AMOUNT}`);
+    }
+
+    if (cryptoAmt < MIN_CRYPTO_AMOUNT) {
+      return alert(`Minimum crypto amount is ${MIN_CRYPTO_AMOUNT}`);
+    }
+
+    // For sell transactions, check if user has sufficient balance
+    if (activeTab === 'sell' && balance < fiatAmount) {
+      return alert(`Insufficient balance. You have $${balance.toFixed(2)} available.`);
+    }
+
     // Try to fetch current user's profile thumbprint to include as from_thumbprint
     let fromThumb: string | null = null;
     try {
@@ -209,16 +253,20 @@ const BuySell = () => {
       // ignore — optional
     }
 
-    const payload = {
+    const payload: TransactionPayload = {
       kind: activeTab === 'buy' ? 'buy' : 'sell',
       crypto: selectedCrypto.code,
       fiatCurrency: selectedCurrency.code,
       fiatSymbol: selectedCurrency.symbol,
-      amountFiat: parseFloat(amount),
-      amountCrypto: parseFloat(cryptoAmount),
+      amountFiat: fiatAmount,
+      amountCrypto: cryptoAmt,
       timestamp: new Date().toISOString(),
       user_id: user.id,
+      from_user_id: user.id,
       from_thumbprint: fromThumb,
+      // For buy/sell, there's no recipient (it's with the exchange)
+      to_user_id: null,
+      to_thumbprint: null,
     };
 
     const currentKey = getSymKey();
@@ -383,7 +431,7 @@ const BuySell = () => {
               </div>
             )}
 
-            <Button onClick={handleTransaction} disabled={!amount || !cryptoAmount} className="w-full h-12 text-lg">
+            <Button onClick={handleTransaction} disabled={!amount || !cryptoAmount || parseFloat(amount) <= 0 || parseFloat(cryptoAmount) <= 0} className="w-full h-12 text-lg">
               {activeTab === 'buy' ? 'Buy Now' : 'Sell Now'}
             </Button>
           </CardContent>

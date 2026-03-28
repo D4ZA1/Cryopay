@@ -7,6 +7,52 @@ import { getBlocks, getProfile, apiFetch } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 import { decryptJSONWithPassword } from '../lib/crypto';
 import { setSymKey, getSymKey } from '../lib/symmetricSession';
+import { 
+  Transaction, 
+  Block, 
+  PublicSummary
+} from '../types/schemas';
+import { 
+  TransactionKind, 
+  TransactionDirection
+} from '../constants';
+
+// Helper function to determine transaction direction
+const determineTransactionDirection = (
+  block: Block, 
+  currentUserId: string, 
+  currentThumbprint?: string | null
+): TransactionDirection => {
+  const ps = block.data?.public_summary;
+  if (!ps) return TransactionDirection.SENT;
+  
+  const kind = ps.kind;
+  
+  if (kind === TransactionKind.BUY) return TransactionDirection.BUY;
+  if (kind === TransactionKind.SELL) return TransactionDirection.SELL;
+  
+  // For peer-to-peer transactions
+  const isRecipient = 
+    ps.to_user_id === currentUserId || 
+    (currentThumbprint && ps.to_thumbprint === currentThumbprint);
+  
+  return isRecipient ? TransactionDirection.RECEIVED : TransactionDirection.SENT;
+};
+
+// Helper function to resolve display names
+const resolveDisplayName = (
+  userId?: string | null, 
+  thumbprint?: string | null, 
+  fallback?: string,
+  profileMap?: Record<string, string>
+): string => {
+  if (userId && profileMap?.[userId]) return profileMap[userId];
+  if (thumbprint && profileMap?.[thumbprint]) return profileMap[thumbprint];
+  if (fallback) return fallback;
+  if (thumbprint) return `${thumbprint.slice(0, 8)}...`;
+  if (userId) return `User ${userId.slice(0, 8)}...`;
+  return 'Unknown';
+};
 
 // We'll load transactions (blocks) from Supabase
 
@@ -14,120 +60,123 @@ const Transactions = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('All');
   const [filterType, setFilterType] = useState('All');
-  const [transactions, setTransactions] = useState<any[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const { user, setBalance } = useAuth();
   const [openRow, setOpenRow] = useState<number | null>(null);
   const [passwords, setPasswords] = useState<Record<string,string>>({});
-  const [decryptedMap, setDecryptedMap] = useState<Record<string, any>>({});
+  const [decryptedMap, setDecryptedMap] = useState<Record<string, PublicSummary>>({});
+
+  // Function to fetch transactions (extracted for refresh button)
+  const fetchTransactions = async () => {
+    let mounted = true;
+    // fetch current user's profile thumbprint (if any) to determine Sent/Received by thumbprint
+    let currentThumb: string | null = null;
+    try {
+      if (user && user.id) {
+        const profRes = await getProfile();
+        if (profRes.ok && profRes.data?.profile) {
+          currentThumb = profRes.data.profile.public_key?.thumbprint || null;
+        }
+      }
+    } catch (e) { /* ignore */ }
+    try {
+      // Load the most recent blocks globally (not per-user)
+      const blocksRes = await getBlocks();
+      if (!blocksRes.ok) {
+        console.error('Failed to fetch blocks', blocksRes.error);
+        return;
+      }
+      const data = blocksRes.data?.blocks || [];
+      if (!mounted || !data) return;
+      // Map each block to a display transaction using data.public_summary when present
+      // First, build a map of thumbprint -> profile id for any thumbprints mentioned in the fetched blocks
+      const thumbprints = Array.from(new Set(data.flatMap((b: any) => {
+        const ps = (b.data && b.data.public_summary) || {};
+        return [ps.from_thumbprint, ps.to_thumbprint].filter(Boolean);
+      })));
+
+      let thumbToProfile: Record<string, string> = {};
+      if (thumbprints.length > 0) {
+        try {
+          // Try to resolve thumbprints to profile ids - we'll try each one
+          for (const tp of thumbprints as string[]) {
+            const profRes = await apiFetch(`/api/profile/search?thumbprint=${encodeURIComponent(tp)}`);
+            if (profRes.ok && (profRes.data as any)?.profile) {
+              thumbToProfile[tp] = (profRes.data as any).profile.id;
+            }
+          }
+        } catch (e) {
+          // ignore lookup failures; we'll still match by myThumbprint or user_id
+        }
+      }
+
+        const rows = data.map((b: any) => {
+        const ps = (b.data && b.data.public_summary) || {};
+        const kind = ps.kind || 'tx';
+        // Resolve thumbprints to profile ids where possible, and determine whether this is a Sent or Received tx for the current user
+        const resolvedFrom = (ps.from_user_id) || (ps.from_thumbprint && thumbToProfile[ps.from_thumbprint]) || b.user_id || ps.from || null;
+        const resolvedTo = (ps.to_user_id) || (ps.to_thumbprint && thumbToProfile[ps.to_thumbprint]) || ps.to || null;
+        let isSent = false;
+        if (user && user.id) {
+          if (resolvedFrom && resolvedFrom === user.id) isSent = true;
+          else if (resolvedTo && resolvedTo === user.id) isSent = false;
+          else if (ps.from_thumbprint && currentThumb && ps.from_thumbprint === currentThumb) isSent = true;
+          else if (ps.to_thumbprint && currentThumb && ps.to_thumbprint === currentThumb) isSent = false;
+          else if (b.user_id && b.user_id === user.id) isSent = true;
+          else if (ps.from && ps.from === user.id) isSent = true;
+          else isSent = false;
+        }
+
+        let amountUSD = 0;
+        if (kind === 'buy') amountUSD = -Math.abs(ps.amountFiat || 0);
+        else if (kind === 'sell') amountUSD = Math.abs(ps.amountFiat || 0);
+        else amountUSD = isSent ? -Math.abs(ps.amountFiat || 0) : (ps.amountFiat || 0);
+
+        const txType = kind === 'buy' ? 'Buy' : kind === 'sell' ? 'Sell' : (kind === 'tx' ? (isSent ? 'Sent' : 'Received') : kind);
+
+        const relevant = Boolean(user && (
+          (resolvedFrom && resolvedFrom === user.id) ||
+          (resolvedTo && resolvedTo === user.id) ||
+          (ps?.from_thumbprint && currentThumb && ps.from_thumbprint === currentThumb) ||
+          (ps?.to_thumbprint && currentThumb && ps.to_thumbprint === currentThumb) ||
+          (b.user_id && user.id && b.user_id === user.id) ||
+          (ps?.from && user.id && ps.from === user.id) ||
+          (ps?.to && user.id && ps.to === user.id)
+        ));
+
+        return {
+          id: String(b.id),
+          type: txType,
+          to: ps.to || 'You',
+          from: ps.from || 'CryoPay',
+          date: ps.timestamp || b.created_at,
+          amountUSD,
+          amountCrypto: ps.amountCrypto || 0,
+          crypto: ps.crypto || '',
+          status: 'Completed',
+          txHash: b.hash,
+          raw: b,
+          relevant,
+        };
+      });
+      setTransactions(rows);
+      // compute balance as sum of amountUSD for transactions relevant to current user and store in auth context
+      try {
+        const relevant = rows.filter((r: any) => r.relevant);
+        const bal = relevant.reduce((acc: number, r: any) => acc + (r.amountUSD || 0), 0);
+        // setBalance is injected from AuthContext where available
+        (setBalance as any)?.(bal);
+      } catch (e) {
+        // ignore if setBalance not available
+      }
+    } catch (e) {
+      console.error('blocks fetch error', e);
+    }
+  };
 
   useEffect(() => {
-    let mounted = true;
-    (async () => {
-      // fetch current user's profile thumbprint (if any) to determine Sent/Received by thumbprint
-      let currentThumb: string | null = null;
-      try {
-        if (user && user.id) {
-          const profRes = await getProfile();
-          if (profRes.ok && profRes.data?.profile) {
-            currentThumb = profRes.data.profile.public_key?.thumbprint || null;
-          }
-        }
-      } catch (e) { /* ignore */ }
-      try {
-        // Load the most recent blocks globally (not per-user)
-        const blocksRes = await getBlocks();
-        if (!blocksRes.ok) {
-          console.error('Failed to fetch blocks', blocksRes.error);
-          return;
-        }
-        const data = blocksRes.data?.blocks || [];
-        if (!mounted || !data) return;
-        // Map each block to a display transaction using data.public_summary when present
-        // First, build a map of thumbprint -> profile id for any thumbprints mentioned in the fetched blocks
-        const thumbprints = Array.from(new Set(data.flatMap((b: any) => {
-          const ps = (b.data && b.data.public_summary) || {};
-          return [ps.from_thumbprint, ps.to_thumbprint].filter(Boolean);
-        })));
-
-        let thumbToProfile: Record<string, string> = {};
-        if (thumbprints.length > 0) {
-          try {
-            // Try to resolve thumbprints to profile ids - we'll try each one
-            for (const tp of thumbprints as string[]) {
-              const profRes = await apiFetch(`/api/profile/search?thumbprint=${encodeURIComponent(tp)}`);
-              if (profRes.ok && (profRes.data as any)?.profile) {
-                thumbToProfile[tp] = (profRes.data as any).profile.id;
-              }
-            }
-          } catch (e) {
-            // ignore lookup failures; we'll still match by myThumbprint or user_id
-          }
-        }
-
-          const rows = data.map((b: any) => {
-          const ps = (b.data && b.data.public_summary) || {};
-          const kind = ps.kind || 'tx';
-          // Resolve thumbprints to profile ids where possible, and determine whether this is a Sent or Received tx for the current user
-          const resolvedFrom = (ps.from_user_id) || (ps.from_thumbprint && thumbToProfile[ps.from_thumbprint]) || b.user_id || ps.from || null;
-          const resolvedTo = (ps.to_user_id) || (ps.to_thumbprint && thumbToProfile[ps.to_thumbprint]) || ps.to || null;
-          let isSent = false;
-          if (user && user.id) {
-            if (resolvedFrom && resolvedFrom === user.id) isSent = true;
-            else if (resolvedTo && resolvedTo === user.id) isSent = false;
-            else if (ps.from_thumbprint && currentThumb && ps.from_thumbprint === currentThumb) isSent = true;
-            else if (ps.to_thumbprint && currentThumb && ps.to_thumbprint === currentThumb) isSent = false;
-            else if (b.user_id && b.user_id === user.id) isSent = true;
-            else if (ps.from && ps.from === user.id) isSent = true;
-            else isSent = false;
-          }
-
-          let amountUSD = 0;
-          if (kind === 'buy') amountUSD = -Math.abs(ps.amountFiat || 0);
-          else if (kind === 'sell') amountUSD = Math.abs(ps.amountFiat || 0);
-          else amountUSD = isSent ? -Math.abs(ps.amountFiat || 0) : (ps.amountFiat || 0);
-
-          const txType = kind === 'buy' ? 'Buy' : kind === 'sell' ? 'Sell' : (kind === 'tx' ? (isSent ? 'Sent' : 'Received') : kind);
-
-          const relevant = Boolean(user && (
-            (resolvedFrom && resolvedFrom === user.id) ||
-            (resolvedTo && resolvedTo === user.id) ||
-            (ps?.from_thumbprint && currentThumb && ps.from_thumbprint === currentThumb) ||
-            (ps?.to_thumbprint && currentThumb && ps.to_thumbprint === currentThumb) ||
-            (b.user_id && user.id && b.user_id === user.id) ||
-            (ps?.from && user.id && ps.from === user.id) ||
-            (ps?.to && user.id && ps.to === user.id)
-          ));
-
-          return {
-            id: String(b.id),
-            type: txType,
-            to: ps.to || 'You',
-            from: ps.from || 'CryoPay',
-            date: ps.timestamp || b.created_at,
-            amountUSD,
-            amountCrypto: ps.amountCrypto || 0,
-            crypto: ps.crypto || '',
-            status: 'Completed',
-            txHash: b.hash,
-            raw: b,
-            relevant,
-          };
-        });
-        setTransactions(rows);
-        // compute balance as sum of amountUSD for transactions relevant to current user and store in auth context
-        try {
-          const relevant = rows.filter((r: any) => r.relevant);
-          const bal = relevant.reduce((acc: number, r: any) => acc + (r.amountUSD || 0), 0);
-          // setBalance is injected from AuthContext where available
-          (setBalance as any)?.(bal);
-        } catch (e) {
-          // ignore if setBalance not available
-        }
-      } catch (e) {
-        console.error('blocks fetch error', e);
-      }
-    })();
-    return () => { mounted = false; };
+    fetchTransactions();
+    return () => {};
   }, [user]);
 
   const filteredTransactions = transactions.filter(tx => {
@@ -254,10 +303,33 @@ const Transactions = () => {
                 <option value="Pending">Pending</option>
                 <option value="Failed">Failed</option>
               </select>
-              <Button variant="outline" size="icon">
+              <Button variant="outline" size="icon" onClick={fetchTransactions}>
                 <RefreshCw className="h-4 w-4" />
               </Button>
-              <Button variant="outline">
+              <Button variant="outline" onClick={() => {
+                const csvContent = [
+                  ['ID', 'Type', 'From', 'To', 'Date', 'Amount (USD)', 'Amount (Crypto)', 'Crypto', 'Status', 'Transaction Hash'].join(','),
+                  ...filteredTransactions.map(tx => [
+                    tx.id,
+                    tx.type,
+                    `"${tx.from}"`,
+                    `"${tx.to}"`,
+                    tx.date,
+                    tx.amountUSD.toFixed(2),
+                    tx.amountCrypto,
+                    tx.crypto,
+                    tx.status,
+                    tx.txHash || ''
+                  ].join(','))
+                ].join('\n');
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `transactions_${new Date().toISOString().split('T')[0]}.csv`;
+                link.click();
+                URL.revokeObjectURL(url);
+              }}>
                 <Download className="h-4 w-4 mr-2" />
                 Export
               </Button>

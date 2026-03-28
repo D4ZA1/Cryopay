@@ -91,6 +91,10 @@ export async function verifyWallet(publicKey: string, challenge: string, signatu
 }
 
 export async function saveWallet(publicKey: string, encryptedPrivateKey: string, verified: boolean = false) {
+  console.log('[api.ts saveWallet] publicKey:', publicKey ? '(present)' : 'empty');
+  console.log('[api.ts saveWallet] encryptedPrivateKey:', encryptedPrivateKey ? '(present)' : 'empty');
+  console.log('[api.ts saveWallet] encryptedPrivateKey type:', typeof encryptedPrivateKey);
+  console.log('[api.ts saveWallet] verified:', verified);
   return apiFetch('/api/wallet', {
     method: 'POST',
     body: JSON.stringify({ public_key: publicKey, encrypted_private_key: encryptedPrivateKey, verified }),
@@ -106,7 +110,7 @@ export async function getBlock(id: number) {
   return apiFetch(`/api/blocks/${id}`);
 }
 
-export async function createBlock(data: string, previousHash?: string) {
+export async function createBlock(data: string, previousHash?: string | null) {
   return apiFetch('/api/blocks', {
     method: 'POST',
     body: JSON.stringify({ data, previous_hash: previousHash }),

@@ -31,7 +31,7 @@ const Wallet: React.FC = () => {
 
   const handleSave = async () => {
     if (!user) return setStatus('You must be signed in');
-    if (!password) return setStatus('Enter a password to encrypt the private key');
+    if (!password) return setStatus('Enter a password to encrypt the private key (required)');
     const priv: JsonWebKey | undefined = (window as any).__cryopay_private_jwk;
     if (!priv) return setStatus('No private key in memory — generate first');
     setStatus('Encrypting private key...');
