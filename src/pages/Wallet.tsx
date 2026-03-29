@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { Button } from '../components/ui/button';
 import { apiFetch, saveWallet } from '../lib/api';
 import { generateKeyPair, exportJwk, encryptJwkWithPassword, jwkThumbprint } from '../lib/crypto';
 
 const Wallet: React.FC = () => {
+  const navigate = useNavigate();
   const { user, refreshUser } = useAuth();
   const [status, setStatus] = useState<string | null>(null);
   const [password, setPassword] = useState('');
@@ -94,8 +97,8 @@ const Wallet: React.FC = () => {
           <input value={password} onChange={e => setPassword(e.target.value)} type="password" className="mt-1 block w-full rounded border px-3 py-2" />
         </div>
         <div className="flex gap-2">
-          <button onClick={handleSave} className="btn btn-success">Save (encrypt & upload)</button>
-          <a href="/confirm-key" className="btn btn-ghost">Go to Confirm Key</a>
+          <Button onClick={handleSave} variant="default">Save (encrypt & upload)</Button>
+          <Button onClick={() => navigate('/confirm-key')} variant="ghost">Go to Confirm Key</Button>
         </div>
         {status && <div className="mt-3 text-sm text-slate-700">{status}</div>}
       </div>

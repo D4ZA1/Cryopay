@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { verifyWallet, getWallet } from '../lib/api';
 import { decryptJwkWithPassword, signString } from '../lib/crypto';
+import { Button } from '../components/ui/button';
 
 const ConfirmKey: React.FC = () => {
   const { user } = useAuth();
@@ -83,8 +84,8 @@ const ConfirmKey: React.FC = () => {
             <input type="password" value={password} onChange={e => setPassword(e.target.value)} className="mt-1 block w-full rounded border px-3 py-2" />
           </div>
           <div className="flex gap-2">
-            <button onClick={handleRequestChallenge} className="btn">Create Challenge</button>
-            <button onClick={handleSignAndVerify} className="btn btn-primary">Sign & Verify</button>
+            <Button onClick={handleRequestChallenge} variant="outline">Create Challenge</Button>
+            <Button onClick={handleSignAndVerify} variant="default">Sign & Verify</Button>
           </div>
           {challenge && <div className="text-xs text-slate-600">Challenge: <code className="bg-slate-100 px-2 rounded">{challenge}</code></div>}
           {status && <div className="mt-2 text-sm">{status}</div>}
