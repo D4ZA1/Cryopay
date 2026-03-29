@@ -183,7 +183,9 @@ const Transactions = () => {
     const matchesSearch = 
       tx.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
       tx.to.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      tx.from.toLowerCase().includes(searchTerm.toLowerCase());
+      tx.from.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      tx.crypto.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      tx.type.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesStatus = filterStatus === 'All' || tx.status === filterStatus;
     const matchesType = filterType === 'All' || tx.type === filterType;
@@ -193,18 +195,18 @@ const Transactions = () => {
 
   const getStatusClass = (status: string) => {
     switch(status) {
-      case 'Completed': return 'bg-green-100 text-green-800';
-      case 'Pending': return 'bg-yellow-100 text-yellow-800';
-      case 'Failed': return 'bg-red-100 text-red-800';
-      default: return 'bg-slate-100 text-slate-800';
+      case 'Completed': return 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30';
+      case 'Pending': return 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30';
+      case 'Failed': return 'bg-red-500/20 text-red-400 border border-red-500/30';
+      default: return 'bg-slate-500/20 text-slate-400 border border-slate-500/30';
     }
   };
 
   const getTransactionIcon = (type: string) => {
     if (type === 'Sent' || type === 'Sell') {
-      return <ArrowUpRight className="h-5 w-5 text-red-500" />;
+      return <ArrowUpRight className="h-5 w-5 text-red-400" />;
     } else {
-      return <ArrowDownLeft className="h-5 w-5 text-green-500" />;
+      return <ArrowDownLeft className="h-5 w-5 text-emerald-400" />;
     }
   };
 
@@ -219,8 +221,8 @@ const Transactions = () => {
   return (
     <div className="p-8">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-slate-900">Transaction History</h1>
-        <p className="text-slate-600 mt-2">View and manage all your transactions</p>
+        <h1 className="text-3xl font-bold text-white">Transaction History</h1>
+        <p className="text-slate-400 mt-2">View and manage all your transactions</p>
       </div>
 
       {/* Summary Cards */}
@@ -231,32 +233,32 @@ const Transactions = () => {
           const totalSent = relevantTx.filter((t: any) => t.amountUSD < 0).reduce((acc: number, t: any) => acc + t.amountUSD, 0);
           return (
             <>
-              <Card>
+              <Card className="bg-slate-900/80 backdrop-blur-xl border-white/[0.06] rounded-2xl">
                 <CardContent className="pt-6">
-                  <p className="text-sm font-medium text-slate-500">Total Transactions</p>
-                  <p className="text-2xl font-bold mt-2">{relevantTx.length}</p>
+                  <p className="text-sm font-medium text-slate-400">Total Transactions</p>
+                  <p className="text-2xl font-bold mt-2 text-white">{relevantTx.length}</p>
                 </CardContent>
               </Card>
-              <Card>
+              <Card className="bg-slate-900/80 backdrop-blur-xl border-white/[0.06] rounded-2xl">
                 <CardContent className="pt-6">
-                  <p className="text-sm font-medium text-slate-500">Total Received</p>
-                  <p className="text-2xl font-bold mt-2 text-green-600">
+                  <p className="text-sm font-medium text-slate-400">Total Received</p>
+                  <p className="text-2xl font-bold mt-2 text-emerald-400">
                     ${totalReceived.toFixed(2)}
                   </p>
                 </CardContent>
               </Card>
-              <Card>
+              <Card className="bg-slate-900/80 backdrop-blur-xl border-white/[0.06] rounded-2xl">
                 <CardContent className="pt-6">
-                  <p className="text-sm font-medium text-slate-500">Total Sent</p>
-                  <p className="text-2xl font-bold mt-2 text-red-600">
+                  <p className="text-sm font-medium text-slate-400">Total Sent</p>
+                  <p className="text-2xl font-bold mt-2 text-red-400">
                     ${Math.abs(totalSent).toFixed(2)}
                   </p>
                 </CardContent>
               </Card>
-              <Card>
+              <Card className="bg-slate-900/80 backdrop-blur-xl border-white/[0.06] rounded-2xl">
                 <CardContent className="pt-6">
-                  <p className="text-sm font-medium text-slate-500">Pending</p>
-                  <p className="text-2xl font-bold mt-2 text-yellow-600">
+                  <p className="text-sm font-medium text-slate-400">Pending</p>
+                  <p className="text-2xl font-bold mt-2 text-yellow-400">
                     {relevantTx.filter((t: any) => t.status === 'Pending').length}
                   </p>
                 </CardContent>
@@ -267,7 +269,7 @@ const Transactions = () => {
       </div>
 
       {/* Filters and Search */}
-      <Card className="mb-6">
+      <Card className="mb-6 bg-slate-900/80 backdrop-blur-xl border-white/[0.06] rounded-2xl">
         <CardContent className="pt-6">
           <div className="flex flex-col md:flex-row gap-4">
             <div className="flex-1 relative">
@@ -275,17 +277,17 @@ const Transactions = () => {
               <Input
                 name="txn_search"
                 autoComplete="off"
-                placeholder="Search by ID, address, or recipient..."
+                placeholder="Search by ID, address, crypto, or type..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
+                className="pl-10 bg-slate-800/50 border-white/[0.06] text-white placeholder:text-slate-500 focus:border-emerald-500/50"
               />
             </div>
             <div className="flex gap-2">
               <select
                 value={filterType}
                 onChange={(e) => setFilterType(e.target.value)}
-                className="px-4 py-2 border border-slate-200 rounded-md text-sm"
+                className="px-4 py-2 bg-slate-800/50 border border-white/[0.06] rounded-md text-sm text-white focus:border-emerald-500/50 focus:outline-none"
               >
                 <option value="All">All Types</option>
                 <option value="Sent">Sent</option>
@@ -296,14 +298,14 @@ const Transactions = () => {
               <select
                 value={filterStatus}
                 onChange={(e) => setFilterStatus(e.target.value)}
-                className="px-4 py-2 border border-slate-200 rounded-md text-sm"
+                className="px-4 py-2 bg-slate-800/50 border border-white/[0.06] rounded-md text-sm text-white focus:border-emerald-500/50 focus:outline-none"
               >
                 <option value="All">All Status</option>
                 <option value="Completed">Completed</option>
                 <option value="Pending">Pending</option>
                 <option value="Failed">Failed</option>
               </select>
-              <Button variant="outline" size="icon" onClick={fetchTransactions}>
+              <Button variant="outline" size="icon" onClick={fetchTransactions} className="bg-white/[0.06] border-white/[0.06] hover:bg-white/[0.1] text-slate-400">
                 <RefreshCw className="h-4 w-4" />
               </Button>
               <Button variant="outline" onClick={() => {
@@ -329,7 +331,7 @@ const Transactions = () => {
                 link.download = `transactions_${new Date().toISOString().split('T')[0]}.csv`;
                 link.click();
                 URL.revokeObjectURL(url);
-              }}>
+              }} className="bg-white/[0.06] border-white/[0.06] hover:bg-white/[0.1] text-slate-400">
                 <Download className="h-4 w-4 mr-2" />
                 Export
               </Button>
@@ -339,17 +341,17 @@ const Transactions = () => {
       </Card>
 
       {/* Transactions Table */}
-      <Card>
+      <Card className="bg-slate-900/80 backdrop-blur-xl border-white/[0.06] rounded-2xl">
         <CardContent className="pt-6">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-slate-200">
-                  <th className="text-left py-3 px-4 font-medium text-slate-700">Transaction</th>
-                  <th className="text-left py-3 px-4 font-medium text-slate-700">Date & Time</th>
-                  <th className="text-right py-3 px-4 font-medium text-slate-700">Amount</th>
-                  <th className="text-center py-3 px-4 font-medium text-slate-700">Status</th>
-                  <th className="text-right py-3 px-4 font-medium text-slate-700">Actions</th>
+                <tr className="border-b border-white/[0.06]">
+                  <th className="text-left py-3 px-4 font-medium text-slate-400">Transaction</th>
+                  <th className="text-left py-3 px-4 font-medium text-slate-400">Date & Time</th>
+                  <th className="text-right py-3 px-4 font-medium text-slate-400">Amount</th>
+                  <th className="text-center py-3 px-4 font-medium text-slate-400">Status</th>
+                  <th className="text-right py-3 px-4 font-medium text-slate-400">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -362,18 +364,18 @@ const Transactions = () => {
                 ) : (
                   filteredTransactions.map((tx) => (
                     <React.Fragment key={tx.id}>
-                    <tr className="border-b border-slate-100 hover:bg-slate-50">
+                    <tr className="border-b border-white/[0.06] hover:bg-white/[0.02] transition-colors">
                       <td className="py-4 px-4">
                           <div className="flex items-center gap-3">
-                          <span className="p-2 bg-slate-100 rounded-full">
+                          <span className="p-2 bg-white/[0.06] rounded-full">
                             {getTransactionIcon(tx.type)}
                           </span>
                           <div>
-                            <div className="font-medium flex items-center gap-2">
+                            <div className="font-medium flex items-center gap-2 text-white">
                               {getTransactionLabel(tx)}
                               {/* Visual indicator when this row has been decrypted in-session */}
                               {decryptedMap[tx.id] && (
-                                <span className="text-xs px-2 py-0.5 rounded bg-green-100 text-green-800">Decrypted</span>
+                                <span className="text-xs px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">Decrypted</span>
                               )}
                             </div>
                             <div className="text-sm text-slate-500">ID: {tx.id}</div>
@@ -381,10 +383,10 @@ const Transactions = () => {
                         </div>
                       </td>
                       <td className="py-4 px-4">
-                        <div className="text-sm">{tx.date}</div>
+                        <div className="text-sm text-slate-400">{tx.date}</div>
                       </td>
                       <td className="py-4 px-4 text-right">
-                        <div className={`font-medium ${tx.amountUSD > 0 ? 'text-green-600' : 'text-slate-800'}`}>
+                        <div className={`font-medium ${tx.amountUSD > 0 ? 'text-emerald-400' : 'text-white'}`}>
                           {tx.amountUSD.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}
                         </div>
                         <div className="text-sm text-slate-500">
@@ -398,7 +400,7 @@ const Transactions = () => {
                       </td>
                       <td className="py-4 px-4 text-right">
                         <div className="flex items-center justify-end">
-                          <Button type="button" variant="ghost" size="sm" className="text-slate-600" onClick={() => {
+                          <Button type="button" variant="ghost" size="sm" className="text-slate-400 hover:text-white hover:bg-white/[0.06]" onClick={() => {
                             const willOpen = openRow !== Number(tx.id);
                             // If we're opening the row and a session sym key exists, prefill the password
                             if (willOpen) {
@@ -418,7 +420,7 @@ const Transactions = () => {
                     </tr>
                     {openRow === Number(tx.id) && (
                       <tr>
-                        <td colSpan={5} className="bg-slate-50 px-4 py-3">
+                        <td colSpan={5} className="bg-slate-800/50 px-4 py-3">
                           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
                             <div className="flex-1">
                               <input
@@ -427,7 +429,7 @@ const Transactions = () => {
                                 placeholder="Enter wallet key to decrypt"
                                 value={passwords[tx.id] || ''}
                                 onChange={(e) => setPasswords({ ...passwords, [tx.id]: e.target.value })}
-                                className="border rounded px-3 py-2 w-full md:w-80"
+                                className="bg-slate-800/50 border border-white/[0.06] text-white placeholder:text-slate-500 rounded px-3 py-2 w-full md:w-80 focus:border-emerald-500/50 focus:outline-none"
                                 spellCheck={false}
                                 autoCapitalize="none"
                                 autoCorrect="off"
@@ -455,13 +457,13 @@ const Transactions = () => {
                                   console.error('decrypt failed', e);
                                   alert('Decryption failed: ' + (e?.message || String(e)));
                                 }
-                              }}>Decrypt</Button>
-                              <Button type="button" variant="outline" size="sm" onClick={() => { setOpenRow(null); }}>Close</Button>
+                              }} className="bg-emerald-500 hover:bg-emerald-600 text-white">Decrypt</Button>
+                              <Button type="button" variant="outline" size="sm" onClick={() => { setOpenRow(null); }} className="bg-white/[0.06] border-white/[0.06] hover:bg-white/[0.1] text-slate-400">Close</Button>
                             </div>
                           </div>
                           {decryptedMap[tx.id] && (
-                            <div className="mt-3 p-3 bg-white rounded border">
-                              <pre className="text-xs whitespace-pre-wrap">{JSON.stringify(decryptedMap[tx.id], null, 2)}</pre>
+                            <div className="mt-3 p-3 bg-slate-900/80 rounded border border-white/[0.06]">
+                              <pre className="text-xs whitespace-pre-wrap text-slate-300">{JSON.stringify(decryptedMap[tx.id], null, 2)}</pre>
                             </div>
                           )}
                         </td>

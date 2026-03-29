@@ -116,7 +116,7 @@ function getMiniBarHeights(ticker: TickerData): number[] {
 function CryptoIcon({ symbol, color }: { symbol: string; color: string }) {
   return (
     <div
-      className="flex-shrink-0 flex items-center justify-center w-8 h-8 rounded-full text-[10px] font-bold tracking-tight select-none"
+      className="flex-shrink-0 flex items-center justify-center w-6 h-6 rounded-full text-[9px] font-bold tracking-tight select-none"
       style={{ backgroundColor: `${color}22`, color, border: `1.5px solid ${color}55` }}
     >
       {symbol.slice(0, 3)}
@@ -127,11 +127,11 @@ function CryptoIcon({ symbol, color }: { symbol: string; color: string }) {
 function MiniBars({ heights, isPositive }: { heights: number[]; isPositive: boolean }) {
   const barColor = isPositive ? 'bg-emerald-400' : 'bg-red-400';
   return (
-    <div className="flex items-end gap-[2px] h-4 ml-2">
+    <div className="flex items-end gap-[2px] h-3 ml-1.5">
       {heights.map((h, i) => (
         <div
           key={i}
-          className={`w-[3px] rounded-sm ${barColor}`}
+          className={`w-[2.5px] rounded-sm ${barColor}`}
           style={{ height: `${Math.min(Math.max(h, 15), 100)}%`, opacity: 0.5 + i * 0.15 }}
         />
       ))}
@@ -144,27 +144,27 @@ function TickerItem({ data }: { data: TickerData }) {
   const barHeights = getMiniBarHeights(data);
 
   return (
-    <div className="flex items-center gap-3 px-5 py-2.5 border-r border-white/[0.06] last:border-r-0 select-none whitespace-nowrap">
+    <div className="flex items-center gap-2 px-3 py-2 border-r border-white/[0.06] last:border-r-0 select-none whitespace-nowrap">
       <CryptoIcon symbol={data.displaySymbol} color={data.color} />
 
       <div className="flex flex-col leading-tight">
-        <span className="text-[11px] font-semibold tracking-wider text-slate-300 uppercase">
+        <span className="text-[9px] font-semibold tracking-wider text-slate-300 uppercase">
           {data.displaySymbol}
           <span className="text-slate-500/70 font-normal ml-0.5">/USD</span>
         </span>
-        <span className="text-sm font-semibold text-white tabular-nums">
+        <span className="text-xs font-semibold text-white tabular-nums">
           {formatPrice(data.price)}
         </span>
       </div>
 
-      <div className="flex items-center gap-1 ml-1">
+      <div className="flex items-center gap-0.5 ml-0.5">
         {isPositive ? (
-          <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />
+          <TrendingUp className="w-3 h-3 text-emerald-400" />
         ) : (
-          <TrendingDown className="w-3.5 h-3.5 text-red-400" />
+          <TrendingDown className="w-3 h-3 text-red-400" />
         )}
         <span
-          className={`text-xs font-medium tabular-nums ${
+          className={`text-[10px] font-medium tabular-nums ${
             isPositive ? 'text-emerald-400' : 'text-red-400'
           }`}
         >
@@ -271,7 +271,7 @@ export default function CryptoTicker({ speed = 30, className = '' }: CryptoTicke
 
   return (
     <div
-      className={`relative w-full overflow-hidden bg-slate-950/80 backdrop-blur-xl border-y border-white/[0.06] ${className}`}
+      className={`relative w-full max-w-[1400px] mx-auto overflow-hidden bg-slate-950/80 backdrop-blur-xl border-y border-white/[0.06] ${className}`}
     >
       {/* Gradient fade — left */}
       <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-20 z-10 bg-gradient-to-r from-slate-950/90 to-transparent" />

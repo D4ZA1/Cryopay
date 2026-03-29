@@ -16,7 +16,7 @@ const AuthenticatedLayout: React.FC = () => {
   const handleMouseLeave = () => !isSidebarPinned && setIsSidebarExpanded(false);
 
   return (
-    <div className="flex bg-white text-slate-800">
+    <div className="flex bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white">
       <Sidebar
         isExpanded={isSidebarExpanded}
         isPinned={isSidebarPinned}
@@ -27,15 +27,15 @@ const AuthenticatedLayout: React.FC = () => {
       />
 
       <main className={`flex-1 min-h-screen transition-all duration-300 ease-in-out ${isSidebarExpanded || isSidebarPinned ? 'ml-64' : 'ml-20'}`}>
-        <header className="h-16 flex items-center justify-between border-b border-slate-200 px-8">
-          <h1 className="text-2xl font-bold">Dashboard</h1>
+        <header className="h-16 flex items-center justify-between border-b border-white/[0.06] bg-slate-900/80 backdrop-blur-xl px-8">
+          <h1 className="text-2xl font-bold text-white">Dashboard</h1>
           <div className="flex items-center gap-4">
-            <div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" /><Input placeholder="Search..." className="pl-10 w-64" /></div>
+            <div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" /><Input placeholder="Search..." className="pl-10 w-64 bg-slate-800/50 border-white/[0.06] text-white placeholder:text-slate-500" autoComplete="off" /></div>
             <Button variant="ghost" size="icon"><Bell className="h-5 w-5" /></Button>
           </div>
         </header>
 
-        <div className="p-8">
+        <div className="p-0">
           <Outlet />
         </div>
       </main>

@@ -297,18 +297,18 @@ const BuySell = () => {
   return (
     <div className="p-8 max-w-6xl mx-auto">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-slate-900">Buy & Sell Crypto</h1>
-        <p className="text-slate-600 mt-2">Trade cryptocurrencies with ease</p>
+        <h1 className="text-3xl font-bold text-white">Buy & Sell Crypto</h1>
+        <p className="text-slate-400 mt-2">Trade cryptocurrencies with ease</p>
       </div>
 
       {/* Security Warning for Selling */}
       {activeTab === 'sell' && (
-        <Card className="mb-6 border-orange-200 bg-orange-50">
+        <Card className="mb-6 border-orange-500/20 bg-orange-500/10 backdrop-blur-xl rounded-2xl">
           <CardContent className="pt-6">
             <div className="flex items-start gap-3">
-              <AlertCircle className="h-5 w-5 text-orange-600 flex-shrink-0 mt-0.5" />
-              <div className="text-sm text-orange-800">
-                <p className="font-semibold mb-1">Important Security Notice</p>
+              <AlertCircle className="h-5 w-5 text-orange-400 flex-shrink-0 mt-0.5" />
+              <div className="text-sm text-orange-200">
+                <p className="font-semibold mb-1 text-orange-300">Important Security Notice</p>
                 <p>Selling cryptocurrency requires identity verification and withdrawal limits apply. Transactions are monitored for security. You can only sell to your verified bank account or exchange wallet to prevent fraud and money laundering.</p>
               </div>
             </div>
@@ -318,13 +318,13 @@ const BuySell = () => {
 
       <div className="grid lg:grid-cols-3 gap-6">
         {/* Main Trading Card */}
-        <Card className="lg:col-span-2">
+        <Card className="lg:col-span-2 bg-slate-900/80 backdrop-blur-xl border-white/[0.06] rounded-2xl">
           <CardHeader>
             <div className="flex gap-2 mb-4">
               <Button
                 variant={activeTab === 'buy' ? 'default' : 'outline'}
                 onClick={() => setActiveTab('buy')}
-                className="flex-1"
+                className={activeTab === 'buy' ? 'flex-1 bg-emerald-500 hover:bg-emerald-600 text-white border-0' : 'flex-1 bg-white/[0.06] hover:bg-white/[0.1] text-white border-white/[0.06]'}
               >
                 <TrendingUp className="w-4 h-4 mr-2" />
                 Buy Crypto
@@ -332,30 +332,30 @@ const BuySell = () => {
               <Button
                 variant={activeTab === 'sell' ? 'default' : 'outline'}
                 onClick={() => setActiveTab('sell')}
-                className="flex-1"
+                className={activeTab === 'sell' ? 'flex-1 bg-emerald-500 hover:bg-emerald-600 text-white border-0' : 'flex-1 bg-white/[0.06] hover:bg-white/[0.1] text-white border-white/[0.06]'}
               >
                 <TrendingDown className="w-4 h-4 mr-2" />
                 Sell Crypto
               </Button>
             </div>
-            <CardTitle>
+            <CardTitle className="text-white">
               {activeTab === 'buy' ? 'Buy' : 'Sell'} Cryptocurrency
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="text-slate-400">
               {activeTab === 'buy' ? 'Purchase crypto with your preferred currency' : 'Sell crypto to your verified account'}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             {/* Cryptocurrency Selection */}
             <div className="space-y-2">
-              <Label>Select Cryptocurrency</Label>
+              <Label className="text-slate-400">Select Cryptocurrency</Label>
               <div className="grid grid-cols-3 gap-2">
                 {CRYPTOCURRENCIES.map((crypto) => (
                   <Button
                     key={crypto.code}
                     variant={selectedCrypto.code === crypto.code ? 'default' : 'outline'}
                     onClick={() => setSelectedCrypto(crypto)}
-                    className="h-auto py-3 flex flex-col items-center"
+                    className={selectedCrypto.code === crypto.code ? 'h-auto py-3 flex flex-col items-center bg-emerald-500 hover:bg-emerald-600 text-white border-0' : 'h-auto py-3 flex flex-col items-center bg-white/[0.06] hover:bg-white/[0.1] text-white border-white/[0.06]'}
                   >
                     <span className="font-bold">{crypto.code}</span>
                     <span className="text-xs opacity-70">{crypto.name}</span>
@@ -366,14 +366,14 @@ const BuySell = () => {
 
             {/* Currency Selection */}
             <div className="space-y-2">
-              <Label>{activeTab === 'buy' ? 'Pay With' : 'Receive In'}</Label>
+              <Label className="text-slate-400">{activeTab === 'buy' ? 'Pay With' : 'Receive In'}</Label>
               <div className="grid grid-cols-4 gap-2">
                 {CURRENCIES.map((currency) => (
                   <Button
                     key={currency.code}
                     variant={selectedCurrency.code === currency.code ? 'default' : 'outline'}
                     onClick={() => setSelectedCurrency(currency)}
-                    className="h-auto py-2"
+                    className={selectedCurrency.code === currency.code ? 'h-auto py-2 bg-emerald-500 hover:bg-emerald-600 text-white border-0' : 'h-auto py-2 bg-white/[0.06] hover:bg-white/[0.1] text-white border-white/[0.06]'}
                   >
                     <span className="font-semibold">{currency.code}</span>
                   </Button>
@@ -384,54 +384,54 @@ const BuySell = () => {
             {/* Amount Input */}
             <div className="grid md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="fiat-amount">{activeTab === 'buy' ? 'You Pay' : 'You Receive'}</Label>
+                <Label htmlFor="fiat-amount" className="text-slate-400">{activeTab === 'buy' ? 'You Pay' : 'You Receive'}</Label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">{selectedCurrency.symbol}</span>
-                  <Input id="fiat-amount" type="number" placeholder="0.00" value={amount} onChange={(e) => handleAmountChange(e.target.value)} className="pl-12 text-lg h-12" />
+                  <Input id="fiat-amount" type="number" placeholder="0.00" value={amount} onChange={(e) => handleAmountChange(e.target.value)} className="pl-12 text-lg h-12 bg-slate-800/50 border-white/[0.06] text-white placeholder:text-slate-500" />
                 </div>
               </div>
 
               <div className="flex items-center justify-center">
-                <ArrowRightLeft className="h-6 w-6 text-slate-400" />
+                <ArrowRightLeft className="h-6 w-6 text-emerald-400" />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="crypto-amount">{activeTab === 'buy' ? 'You Get' : 'You Sell'}</Label>
+                <Label htmlFor="crypto-amount" className="text-slate-400">{activeTab === 'buy' ? 'You Get' : 'You Sell'}</Label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">{selectedCrypto.code}</span>
-                  <Input id="crypto-amount" type="number" placeholder="0.00000000" value={cryptoAmount} onChange={(e) => handleCryptoAmountChange(e.target.value)} className="pl-16 text-lg h-12" />
+                  <Input id="crypto-amount" type="number" placeholder="0.00000000" value={cryptoAmount} onChange={(e) => handleCryptoAmountChange(e.target.value)} className="pl-16 text-lg h-12 bg-slate-800/50 border-white/[0.06] text-white placeholder:text-slate-500" />
                 </div>
               </div>
             </div>
 
             {/* Transaction Summary */}
             {amount && cryptoAmount && (
-              <div className="bg-slate-50 p-4 rounded-lg space-y-2">
+              <div className="bg-slate-800/50 border border-white/[0.06] p-4 rounded-2xl space-y-2">
                 <div className="flex justify-between text-sm items-center">
-                  <span className="text-slate-600">Exchange Rate</span>
+                  <span className="text-slate-400">Exchange Rate</span>
                   <div className="text-right">
                     {priceLoading ? (
                       <span className="text-sm text-slate-500">Fetching price...</span>
                     ) : priceError ? (
-                      <span className="text-sm text-red-600">{priceError}</span>
+                      <span className="text-sm text-red-400">{priceError}</span>
                     ) : (
-                      <span className="font-medium">1 {selectedCrypto.code} = {selectedCurrency.symbol}{selectedPrice.toLocaleString(undefined, { maximumFractionDigits: 8 })}</span>
+                      <span className="font-medium text-white">1 {selectedCrypto.code} = {selectedCurrency.symbol}{selectedPrice.toLocaleString(undefined, { maximumFractionDigits: 8 })}</span>
                     )}
-                    <div className="text-xs text-slate-400">Source: Binance</div>
+                    <div className="text-xs text-slate-500">Source: Binance</div>
                   </div>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-slate-600">Transaction Fee (1%)</span>
-                  <span className="font-medium">{selectedCurrency.symbol}{(parseFloat(amount) * 0.01).toFixed(2)}</span>
+                  <span className="text-slate-400">Transaction Fee (1%)</span>
+                  <span className="font-medium text-white">{selectedCurrency.symbol}{(parseFloat(amount) * 0.01).toFixed(2)}</span>
                 </div>
-                <div className="border-t border-slate-200 pt-2 flex justify-between">
-                  <span className="font-semibold">Total</span>
-                  <span className="font-bold text-lg">{selectedCurrency.symbol}{(parseFloat(amount) * 1.01).toFixed(2)}</span>
+                <div className="border-t border-white/[0.06] pt-2 flex justify-between">
+                  <span className="font-semibold text-white">Total</span>
+                  <span className="font-bold text-lg text-emerald-400">{selectedCurrency.symbol}{(parseFloat(amount) * 1.01).toFixed(2)}</span>
                 </div>
               </div>
             )}
 
-            <Button onClick={handleTransaction} disabled={!amount || !cryptoAmount || parseFloat(amount) <= 0 || parseFloat(cryptoAmount) <= 0} className="w-full h-12 text-lg">
+            <Button onClick={handleTransaction} disabled={!amount || !cryptoAmount || parseFloat(amount) <= 0 || parseFloat(cryptoAmount) <= 0} className="w-full h-12 text-lg bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-600 hover:to-cyan-600 text-white border-0 disabled:opacity-50 disabled:cursor-not-allowed">
               {activeTab === 'buy' ? 'Buy Now' : 'Sell Now'}
             </Button>
           </CardContent>
@@ -439,30 +439,30 @@ const BuySell = () => {
 
         {/* Quick Stats Sidebar */}
         <div className="space-y-4">
-          <Card>
+          <Card className="bg-slate-900/80 backdrop-blur-xl border-white/[0.06] rounded-2xl">
             <CardHeader>
               <CardTitle className="text-sm font-medium text-slate-500">YOUR BALANCE</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-bold">{balance ? `$${balance.toFixed(2)}` : '$0.00'}</p>
+              <p className="text-2xl font-bold text-white">{balance ? `$${balance.toFixed(2)}` : '$0.00'}</p>
               <p className="text-sm text-slate-500 mt-1">Available to trade</p>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="bg-slate-900/80 backdrop-blur-xl border-white/[0.06] rounded-2xl">
             <CardHeader>
-              <CardTitle className="text-sm">Top Cryptos</CardTitle>
+              <CardTitle className="text-sm text-white">Top Cryptos</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               {CRYPTOCURRENCIES.slice(0, 4).map((crypto) => (
                 <div key={crypto.code} className="flex justify-between items-center">
                   <div>
-                    <p className="font-medium">{crypto.code}</p>
+                    <p className="font-medium text-white">{crypto.code}</p>
                     <p className="text-xs text-slate-500">{crypto.name}</p>
                   </div>
                   <div className="text-right">
-                    <p className="font-medium">{crypto.code === selectedCrypto.code ? `${selectedCurrency.symbol}${selectedPrice.toLocaleString()}` : '—'}</p>
-                    <p className="text-xs text-green-600">+2.5%</p>
+                    <p className="font-medium text-white">{crypto.code === selectedCrypto.code ? `${selectedCurrency.symbol}${selectedPrice.toLocaleString()}` : '—'}</p>
+                    <p className="text-xs text-emerald-400">+2.5%</p>
                   </div>
                 </div>
               ))}
@@ -470,10 +470,10 @@ const BuySell = () => {
           </Card>
 
           {activeTab === 'sell' && (
-            <Card className="border-blue-200 bg-blue-50">
+            <Card className="border-cyan-500/20 bg-cyan-500/10 backdrop-blur-xl rounded-2xl">
               <CardContent className="pt-6">
-                <p className="text-sm text-blue-800"><strong>KYC Required:</strong> To sell cryptocurrency, you must complete identity verification and link a verified bank account.</p>
-                <Button variant="outline" className="w-full mt-4">Verify Account</Button>
+                <p className="text-sm text-cyan-200"><strong className="text-cyan-300">KYC Required:</strong> To sell cryptocurrency, you must complete identity verification and link a verified bank account.</p>
+                <Button variant="outline" className="w-full mt-4 bg-white/[0.06] hover:bg-white/[0.1] text-white border-white/[0.06]">Verify Account</Button>
               </CardContent>
             </Card>
           )}

@@ -301,7 +301,7 @@ const Dashboard = () => {
       {/* ------------------------------------------------------------------ */}
       {/* Main Content */}
       {/* ------------------------------------------------------------------ */}
-      <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
+      <div className="p-4 md:p-6 lg:p-8 max-w-[1400px] mx-auto space-y-6">
         {/* Greeting */}
         <FadeInUp delay={0.05}>
           <div className="flex items-center justify-between">

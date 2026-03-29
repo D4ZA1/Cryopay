@@ -238,11 +238,11 @@ const Contacts = () => {
 
   const getLabelColor = (label: string) => {
     switch((label || '').toLowerCase()) {
-      case 'friend': return 'bg-blue-100 text-blue-800';
-      case 'family': return 'bg-purple-100 text-purple-800';
-      case 'merchant': return 'bg-green-100 text-green-800';
-      case 'colleague': return 'bg-orange-100 text-orange-800';
-      default: return 'bg-slate-100 text-slate-800';
+      case 'friend': return 'bg-blue-500/20 text-blue-300 border border-blue-500/30';
+      case 'family': return 'bg-purple-500/20 text-purple-300 border border-purple-500/30';
+      case 'merchant': return 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
+      case 'colleague': return 'bg-orange-500/20 text-orange-300 border border-orange-500/30';
+      default: return 'bg-slate-700/50 text-slate-300 border border-slate-600/50';
     }
   };
 
@@ -250,17 +250,17 @@ const Contacts = () => {
     <div className="p-8">
       <div className="flex justify-between items-start mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">Contacts</h1>
-          <p className="text-slate-600 mt-2">Manage your frequently used addresses</p>
+          <h1 className="text-3xl font-bold text-white">Contacts</h1>
+          <p className="text-slate-400 mt-2">Manage your frequently used addresses</p>
         </div>
-        <Button onClick={() => setIsAddModalOpen(true)}>
+        <Button onClick={() => setIsAddModalOpen(true)} className="bg-emerald-500 hover:bg-emerald-600 text-white border-0">
           <Plus className="h-4 w-4 mr-2" />
           Add Contact
         </Button>
       </div>
 
       {/* Search */}
-      <Card className="mb-6">
+      <Card className="mb-6 bg-slate-900/80 backdrop-blur-xl border-white/[0.06] rounded-2xl">
         <CardContent className="pt-6">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
@@ -268,7 +268,7 @@ const Contacts = () => {
               placeholder="Search contacts by name, address, or email..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
+              className="pl-10 bg-slate-800/50 border-white/[0.06] text-white placeholder:text-slate-500"
             />
           </div>
         </CardContent>
@@ -278,45 +278,45 @@ const Contacts = () => {
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredContacts.length === 0 ? (
           <div className="col-span-full text-center py-12">
-            <User className="h-12 w-12 text-slate-300 mx-auto mb-4" />
-            <p className="text-slate-500">No contacts found</p>
+            <User className="h-12 w-12 text-slate-600 mx-auto mb-4" />
+            <p className="text-slate-400">No contacts found</p>
           </div>
         ) : (
           filteredContacts.map((contact) => (
-            <Card key={contact.id} className="hover:shadow-lg transition-shadow">
+            <Card key={contact.id} className="bg-slate-900/60 backdrop-blur-xl border-white/[0.06] rounded-2xl hover:bg-white/[0.02] transition-all">
               <CardContent className="pt-6">
                 <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 rounded-full bg-slate-200 flex items-center justify-center text-slate-700 font-semibold flex-shrink-0">
+                  <div className="w-12 h-12 rounded-full bg-slate-800/80 border border-white/[0.06] flex items-center justify-center text-emerald-400 font-semibold flex-shrink-0">
                     {getInitials(contact?.name || 'U')}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-slate-900 truncate">{contact?.name || 'Unknown'}</h3>
+                    <h3 className="font-semibold text-white truncate">{contact?.name || 'Unknown'}</h3>
                     {contact?.label && (
                       <span className={`inline-block px-2 py-0.5 text-xs font-semibold rounded-full mt-1 ${getLabelColor(contact.label)}`}>
                         {contact.label}
                       </span>
                     )}
-                    <p className="text-xs text-slate-500 mt-2 break-all">{contact?.address || 'N/A'}</p>
+                    <p className="text-xs text-slate-400 mt-2 break-all">{contact?.address || 'N/A'}</p>
                     {contact?.email && (
-                      <p className="text-xs text-slate-500 mt-1">{contact.email}</p>
+                      <p className="text-xs text-slate-400 mt-1">{contact.email}</p>
                     )}
                     <div className="flex gap-2 mt-4">
-                      <Button size="sm" className="flex-1">
+                      <Button size="sm" className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white border-0">
                         <Send className="h-3 w-3 mr-1" />
                         Send
                       </Button>
-                      <Button size="sm" className="flex-1" onClick={() => { setSendTarget(contact); setSendAmount(''); setSendCrypto('ETH'); setSendPassword(''); setIsSendModalOpen(true); }}>
+                      <Button size="sm" className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white border-0" onClick={() => { setSendTarget(contact); setSendAmount(''); setSendCrypto('ETH'); setSendPassword(''); setIsSendModalOpen(true); }}>
                         <Send className="h-3 w-3 mr-1" />
                         Quick Send
                       </Button>
-                      <Button size="sm" variant="outline" onClick={() => { setEditingContact(contact); setIsEditModalOpen(true); }}>
+                      <Button size="sm" variant="outline" className="bg-white/[0.06] border-white/[0.06] text-slate-400 hover:bg-white/[0.08] hover:text-emerald-400" onClick={() => { setEditingContact(contact); setIsEditModalOpen(true); }}>
                         <Edit className="h-3 w-3" />
                       </Button>
                       <Button 
                         size="sm" 
                         variant="outline" 
                         onClick={() => handleDeleteContact(contact.id)}
-                        className="text-red-600 hover:text-red-700"
+                        className="bg-white/[0.06] border-white/[0.06] text-red-400 hover:bg-red-500/20 hover:text-red-400 hover:border-red-500/30"
                       >
                         <Trash2 className="h-3 w-3" />
                       </Button>
@@ -331,29 +331,29 @@ const Contacts = () => {
 
       {/* Quick Send Modal */}
       <Dialog open={isSendModalOpen} onOpenChange={setIsSendModalOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md bg-slate-900/95 backdrop-blur-xl border-white/[0.06]">
           <DialogHeader>
-            <DialogTitle>Send to Contact</DialogTitle>
-            <DialogDescription>Enter receiver public key (pre-filled) and your wallet key to encrypt and persist the transaction.</DialogDescription>
+            <DialogTitle className="text-white">Send to Contact</DialogTitle>
+            <DialogDescription className="text-slate-400">Enter receiver public key (pre-filled) and your wallet key to encrypt and persist the transaction.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label>Receiver Public Key / Address</Label>
-              <Input value={sendTarget?.address || ''} onChange={(e) => setSendTarget({ ...(sendTarget || {}), address: e.target.value })} />
+              <Label className="text-slate-400">Receiver Public Key / Address</Label>
+              <Input value={sendTarget?.address || ''} onChange={(e) => setSendTarget({ ...(sendTarget || {}), address: e.target.value })} className="bg-slate-800/50 border-white/[0.06] text-white placeholder:text-slate-500" />
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-2">
-                <Label>Amount (fiat USD)</Label>
-                <Input value={sendAmount} onChange={(e) => setSendAmount(e.target.value)} />
+                <Label className="text-slate-400">Amount (fiat USD)</Label>
+                <Input value={sendAmount} onChange={(e) => setSendAmount(e.target.value)} className="bg-slate-800/50 border-white/[0.06] text-white placeholder:text-slate-500" />
               </div>
               <div className="space-y-2">
-                <Label>Crypto</Label>
-                <Input value={sendCrypto} onChange={(e) => setSendCrypto(e.target.value)} />
+                <Label className="text-slate-400">Crypto</Label>
+                <Input value={sendCrypto} onChange={(e) => setSendCrypto(e.target.value)} className="bg-slate-800/50 border-white/[0.06] text-white placeholder:text-slate-500" />
               </div>
             </div>
             <div className="space-y-2">
-              <Label>Your Wallet Key (session password)</Label>
-              <Input type="password" value={sendPassword} onChange={(e) => setSendPassword(e.target.value)} placeholder="Enter wallet-derived key or session password" />
+              <Label className="text-slate-400">Your Wallet Key (session password)</Label>
+              <Input type="password" value={sendPassword} onChange={(e) => setSendPassword(e.target.value)} placeholder="Enter wallet-derived key or session password" className="bg-slate-800/50 border-white/[0.06] text-white placeholder:text-slate-500" />
             </div>
             <div className="flex gap-2 pt-4">
               <Button onClick={async () => {
@@ -456,8 +456,8 @@ const Contacts = () => {
                   console.error('send failed', e);
                   alert('Send failed: ' + (e?.message || String(e)));
                 }
-              }} className="flex-1">Send</Button>
-              <Button variant="outline" onClick={() => setIsSendModalOpen(false)}>Cancel</Button>
+              }} className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white border-0">Send</Button>
+              <Button variant="outline" onClick={() => setIsSendModalOpen(false)} className="bg-white/[0.06] border-white/[0.06] text-slate-400 hover:bg-white/[0.08]">Cancel</Button>
             </div>
           </div>
         </DialogContent>
@@ -465,58 +465,62 @@ const Contacts = () => {
 
       {/* Add Contact Modal */}
       <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md bg-slate-900/95 backdrop-blur-xl border-white/[0.06]">
           <DialogHeader>
-            <DialogTitle>Add New Contact</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-white">Add New Contact</DialogTitle>
+            <DialogDescription className="text-slate-400">
               Save a frequently used address for quick transactions
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="contact-name">Name *</Label>
+              <Label htmlFor="contact-name" className="text-slate-400">Name *</Label>
               <Input
                 id="contact-name"
                 placeholder="John Doe"
                 value={newContact.name}
                 onChange={(e) => setNewContact({...newContact, name: e.target.value})}
+                className="bg-slate-800/50 border-white/[0.06] text-white placeholder:text-slate-500"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="contact-address">Wallet Address *</Label>
+              <Label htmlFor="contact-address" className="text-slate-400">Wallet Address *</Label>
               <Input
                 id="contact-address"
                 placeholder="0x..."
                 value={newContact.address}
                 onChange={(e) => setNewContact({...newContact, address: e.target.value})}
+                className="bg-slate-800/50 border-white/[0.06] text-white placeholder:text-slate-500"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="contact-public-key">Public Key / Thumbprint *</Label>
+              <Label htmlFor="contact-public-key" className="text-slate-400">Public Key / Thumbprint *</Label>
               <Input
                 id="contact-public-key"
                 placeholder="Enter public key JSON or thumbprint"
                 value={newContact.publicKey}
                 onChange={(e) => setNewContact({...newContact, publicKey: e.target.value})}
+                className="bg-slate-800/50 border-white/[0.06] text-white placeholder:text-slate-500"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="contact-email">Email (Optional)</Label>
+              <Label htmlFor="contact-email" className="text-slate-400">Email (Optional)</Label>
               <Input
                 id="contact-email"
                 type="email"
                 placeholder="john@example.com"
                 value={newContact.email}
                 onChange={(e) => setNewContact({...newContact, email: e.target.value})}
+                className="bg-slate-800/50 border-white/[0.06] text-white placeholder:text-slate-500"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="contact-label">Label</Label>
+              <Label htmlFor="contact-label" className="text-slate-400">Label</Label>
               <select
                 id="contact-label"
                 value={newContact.label}
                 onChange={(e) => setNewContact({...newContact, label: e.target.value})}
-                className="w-full px-3 py-2 border border-slate-200 rounded-md"
+                className="w-full px-3 py-2 border bg-slate-800/50 border-white/[0.06] text-white rounded-md"
               >
                 <option value="">Select a label</option>
                 <option value="Friend">Friend</option>
@@ -526,10 +530,10 @@ const Contacts = () => {
               </select>
             </div>
             <div className="flex gap-2 pt-4">
-              <Button onClick={handleAddContact} className="flex-1">
+              <Button onClick={handleAddContact} className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white border-0">
                 Add Contact
               </Button>
-              <Button variant="outline" onClick={() => setIsAddModalOpen(false)}>
+              <Button variant="outline" onClick={() => setIsAddModalOpen(false)} className="bg-white/[0.06] border-white/[0.06] text-slate-400 hover:bg-white/[0.08]">
                 Cancel
               </Button>
             </div>
@@ -539,40 +543,42 @@ const Contacts = () => {
 
       {/* Edit Contact Modal */}
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md bg-slate-900/95 backdrop-blur-xl border-white/[0.06]">
           <DialogHeader>
-            <DialogTitle>Edit Contact</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-white">Edit Contact</DialogTitle>
+            <DialogDescription className="text-slate-400">
               Update contact details
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="edit-contact-name">Name *</Label>
+              <Label htmlFor="edit-contact-name" className="text-slate-400">Name *</Label>
               <Input
                 id="edit-contact-name"
                 placeholder="John Doe"
                 value={editingContact?.name || ''}
                 onChange={(e) => editingContact && setEditingContact({...editingContact, name: e.target.value})}
+                className="bg-slate-800/50 border-white/[0.06] text-white placeholder:text-slate-500"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="edit-contact-address">Wallet Address</Label>
+              <Label htmlFor="edit-contact-address" className="text-slate-400">Wallet Address</Label>
               <Input
                 id="edit-contact-address"
                 placeholder="0x..."
                 value={editingContact?.address || ''}
                 onChange={(e) => editingContact && setEditingContact({...editingContact, address: e.target.value})}
                 disabled
+                className="bg-slate-800/50 border-white/[0.06] text-slate-500 placeholder:text-slate-500"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="edit-contact-label">Label</Label>
+              <Label htmlFor="edit-contact-label" className="text-slate-400">Label</Label>
               <select
                 id="edit-contact-label"
                 value={editingContact?.label || ''}
                 onChange={(e) => editingContact && setEditingContact({...editingContact, label: e.target.value})}
-                className="w-full px-3 py-2 border border-slate-200 rounded-md"
+                className="w-full px-3 py-2 border bg-slate-800/50 border-white/[0.06] text-white rounded-md"
               >
                 <option value="">Select a label</option>
                 <option value="Friend">Friend</option>
@@ -582,10 +588,10 @@ const Contacts = () => {
               </select>
             </div>
             <div className="flex gap-2 pt-4">
-              <Button onClick={handleEditContact} className="flex-1">
+              <Button onClick={handleEditContact} className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white border-0">
                 Save Changes
               </Button>
-              <Button variant="outline" onClick={() => { setIsEditModalOpen(false); setEditingContact(null); }}>
+              <Button variant="outline" onClick={() => { setIsEditModalOpen(false); setEditingContact(null); }} className="bg-white/[0.06] border-white/[0.06] text-slate-400 hover:bg-white/[0.08]">
                 Cancel
               </Button>
             </div>
