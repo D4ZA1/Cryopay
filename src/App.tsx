@@ -1,4 +1,5 @@
 import { Routes, Route } from 'react-router-dom';
+import AnimatedBackground from './components/AnimatedBackground';
 import LandingPage from './pages/LandingPage';
 import OnboardingScreen from './pages/Onboarding';
 import SignUpCustodial from './pages/SignUpCustodial';
@@ -21,7 +22,9 @@ import AuthenticatedLayout from './layouts/AuthenticatedLayout';
 
 function App() {
   return (
-    <Routes>
+    <>
+      <AnimatedBackground />
+      <Routes>
       {/* Public Routes */}
       <Route path="/" element={<LandingPage />} />
       <Route path="/onboarding" element={<OnboardingScreen />} />
@@ -50,6 +53,7 @@ function App() {
 
       <Route path="*" element={<LandingPage />} />
     </Routes>
+    </>
   );
 }
 

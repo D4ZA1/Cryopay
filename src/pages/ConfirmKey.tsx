@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { verifyWallet, getWallet } from '../lib/api';
 import { decryptJwkWithPassword, signString } from '../lib/crypto';
+import { Button } from '../components/ui/button';
 import { getErrorMessage } from '../lib/utils';
 
 const ConfirmKey: React.FC = () => {
@@ -72,23 +73,32 @@ const ConfirmKey: React.FC = () => {
   };
 
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-semibold mb-4">Confirm Key</h1>
-      {!walletRow && <div className="mb-4">No wallet found for your account. Create one on the Wallet page.</div>}
+    <div className="p-6 min-h-screen max-w-[1000px] mx-auto">
+      <h1 className="text-3xl font-bold text-white mb-2">Confirm Key</h1>
+      <p className="text-slate-400 mb-6">Verify your wallet ownership by signing a challenge</p>
+      {!walletRow && <div className="mb-4 bg-slate-900/80 backdrop-blur-xl border border-white/[0.06] rounded-2xl p-6 text-slate-400">No wallet found for your account. Create one on the Wallet page.</div>}
       {walletRow && (
-        <div className="space-y-3">
-          <div><strong>Public key id:</strong> <code className="bg-slate-100 px-2 rounded">{walletRow?.public_key?.x?.slice?.(0, 8) || walletRow?.public_key?.slice(0, 20) || 'n/a'}</code></div>
-          <div><strong>Verified:</strong> {walletRow?.verified ? 'Yes' : 'No'}</div>
+        <div className="bg-slate-900/80 backdrop-blur-xl border border-white/[0.06] rounded-2xl p-6 space-y-4">
+          <div><strong className="text-white">Public key id:</strong> <code className="bg-slate-800/50 border border-white/[0.06] text-cyan-400 px-2 py-1 rounded">{walletRow?.public_key?.x?.slice?.(0, 8) || walletRow?.public_key?.slice(0, 20) || 'n/a'}</code></div>
+          <div><strong className="text-white">Verified:</strong> <span className={walletRow?.verified ? 'text-emerald-400' : 'text-red-400'}>{walletRow?.verified ? 'Yes' : 'No'}</span></div>
           <div>
-            <label className="block text-sm font-medium">Encryption password</label>
-            <input type="password" value={password} onChange={e => setPassword(e.target.value)} className="mt-1 block w-full rounded border px-3 py-2" />
+            <label className="block text-sm font-medium text-white mb-2">Encryption password</label>
+            <input type="password" value={password} onChange={e => setPassword(e.target.value)} className="mt-1 block w-full bg-slate-800/50 border border-white/[0.06] text-white placeholder:text-slate-500 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-cyan-500/50" />
           </div>
           <div className="flex gap-2">
-            <button onClick={handleRequestChallenge} className="btn">Create Challenge</button>
-            <button onClick={handleSignAndVerify} className="btn btn-primary">Sign & Verify</button>
+            <Button onClick={handleRequestChallenge} variant="outline" className="bg-white/[0.06] border border-white/[0.06] text-white hover:bg-white/[0.1] rounded-xl">Create Challenge</Button>
+            <Button onClick={handleSignAndVerify} variant="default" className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl">Sign & Verify</Button>
           </div>
-          {challenge && <div className="text-xs text-slate-600">Challenge: <code className="bg-slate-100 px-2 rounded">{challenge}</code></div>}
-          {status && <div className="mt-2 text-sm">{status}</div>}
+          {challenge && <div className="text-xs text-slate-400">Challenge: <code className="bg-slate-800/50 border border-white/[0.06] text-cyan-400 px-2 py-1 rounded">{challenge}</code></div>}
+          {status && (
+            <div className={`mt-2 text-sm ${
+              status.includes('verified') || status.includes('Wallet verified') 
+                ? 'text-emerald-400' 
+                : status.includes('Failed') || status.includes('failed') || status.includes('error')
+                ? 'text-red-400'
+                : 'text-slate-400'
+            }`}>{status}</div>
+          )}
         </div>
       )}
     </div>

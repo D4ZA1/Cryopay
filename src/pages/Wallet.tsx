@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { Button } from '../components/ui/button';
 import { apiFetch, saveWallet } from '../lib/api';
 import { generateKeyPair, exportJwk, encryptJwkWithPassword, jwkThumbprint } from '../lib/crypto';
 import { getErrorMessage } from '../lib/utils';
 
 const Wallet: React.FC = () => {
+  const navigate = useNavigate();
   const { user, refreshUser } = useAuth();
   const [status, setStatus] = useState<string | null>(null);
   const [password, setPassword] = useState('');
@@ -84,21 +87,96 @@ const Wallet: React.FC = () => {
   };
 
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-semibold mb-4">Wallet</h1>
-      <p className="mb-4">Generate a new keypair and store the encrypted private key in Supabase. The private key is encrypted locally with a password you provide.</p>
-      <div className="space-y-3">
-        <button onClick={handleGenerate} className="btn btn-primary">Generate Keypair</button>
-        {thumbprint && <div className="text-sm text-slate-600">Public key id: <code className="bg-slate-100 px-2 rounded">{thumbprint}</code></div>}
+    <div className="min-h-screen p-6 lg:p-8">
+      <div className="max-w-2xl mx-auto space-y-6">
+        {/* Header Section */}
         <div>
-          <label className="block text-sm font-medium">Encryption password</label>
-          <input value={password} onChange={e => setPassword(e.target.value)} type="password" className="mt-1 block w-full rounded border px-3 py-2" />
+          <h1 className="text-3xl font-bold text-white mb-2">Wallet</h1>
+          <p className="text-slate-400">Generate a new keypair and store the encrypted private key securely. The private key is encrypted locally with a password you provide.</p>
         </div>
-        <div className="flex gap-2">
-          <button onClick={handleSave} className="btn btn-success">Save (encrypt & upload)</button>
-          <a href="/confirm-key" className="btn btn-ghost">Go to Confirm Key</a>
+
+        {/* Main Card */}
+        <div className="bg-slate-900/80 backdrop-blur-xl border border-white/[0.06] rounded-2xl p-6 space-y-6">
+          
+          {/* Generate Keypair Section */}
+          <div className="space-y-4">
+            <div>
+              <h2 className="text-lg font-semibold text-white mb-2">Generate Keypair</h2>
+              <p className="text-sm text-slate-400 mb-4">Create a new cryptographic key pair for your wallet</p>
+              <button 
+                onClick={handleGenerate} 
+                className="w-full sm:w-auto px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-medium rounded-xl transition-all duration-200 shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30"
+              >
+                Generate Keypair
+              </button>
+            </div>
+
+            {/* Public Key Thumbprint Display */}
+            {thumbprint && (
+              <div className="bg-slate-900/60 border border-white/[0.06] rounded-xl p-4">
+                <label className="text-sm text-slate-400 mb-2 block">Public Key ID</label>
+                <code className="bg-black/40 text-emerald-400 px-3 py-2 rounded-lg text-sm block break-all font-mono">
+                  {thumbprint}
+                </code>
+              </div>
+            )}
+          </div>
+
+          {/* Encryption Password Section */}
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-slate-300">Encryption Password</label>
+            <input 
+              value={password} 
+              onChange={e => setPassword(e.target.value)} 
+              type="password" 
+              placeholder="Enter a strong password"
+              className="w-full bg-slate-900/60 border border-white/[0.06] rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/50 transition-all"
+            />
+            <p className="text-xs text-slate-500">This password will be used to encrypt your private key locally</p>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex flex-col sm:flex-row gap-3 pt-2">
+            <button
+              onClick={handleSave}
+              className="flex-1 px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-medium rounded-xl transition-all duration-200 shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30"
+            >
+              Save (encrypt & upload)
+            </button>
+            <button
+              onClick={() => navigate('/confirm-key')}
+              className="flex-1 px-6 py-3 bg-white/[0.06] hover:bg-white/[0.1] text-white font-medium rounded-xl transition-all duration-200 border border-white/[0.06]"
+            >
+              Go to Confirm Key
+            </button>
+          </div>
+
+          {/* Status Message */}
+          {status && (
+            <div className="bg-slate-900/60 border border-white/[0.06] rounded-xl p-4">
+              <p className="text-sm text-slate-300">{status}</p>
+            </div>
+          )}
         </div>
-        {status && <div className="mt-3 text-sm text-slate-700">{status}</div>}
+
+        {/* Info Card */}
+        <div className="bg-slate-900/80 backdrop-blur-xl border border-white/[0.06] rounded-2xl p-6">
+          <h3 className="text-lg font-semibold text-white mb-3">Security Information</h3>
+          <ul className="space-y-2 text-sm text-slate-400">
+            <li className="flex items-start">
+              <span className="text-emerald-400 mr-2">•</span>
+              <span>Your private key is encrypted locally before being stored</span>
+            </li>
+            <li className="flex items-start">
+              <span className="text-emerald-400 mr-2">•</span>
+              <span>The encryption password is never sent to the server</span>
+            </li>
+            <li className="flex items-start">
+              <span className="text-emerald-400 mr-2">•</span>
+              <span>Keep your password safe - it cannot be recovered if lost</span>
+            </li>
+          </ul>
+        </div>
       </div>
     </div>
   );
