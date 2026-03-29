@@ -16,6 +16,7 @@ import {
   TransactionKind, 
   TransactionDirection
 } from '../constants';
+import { getErrorMessage } from '@/lib/utils';
 
 // Helper function to determine transaction direction
 const determineTransactionDirection = (
@@ -453,9 +454,9 @@ const Transactions = () => {
                                   // decrypt success
                                   setDecryptedMap({ ...decryptedMap, [tx.id]: plain });
                                   setSymKey(pw);
-                                } catch (e: any) {
-                                  console.error('decrypt failed', e);
-                                  alert('Decryption failed: ' + (e?.message || String(e)));
+                                 } catch (e: any) {
+                                   console.error('decrypt failed', e);
+                                   alert('Decryption failed: ' + getErrorMessage(e));
                                 }
                               }} className="bg-emerald-500 hover:bg-emerald-600 text-white">Decrypt</Button>
                               <Button type="button" variant="outline" size="sm" onClick={() => { setOpenRow(null); }} className="bg-white/[0.06] border-white/[0.06] hover:bg-white/[0.1] text-slate-400">Close</Button>

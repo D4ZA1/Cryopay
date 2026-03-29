@@ -1,5 +1,5 @@
 /**
- * CryoPay Frontend Constants
+ * CryoPay Frontend Constants (extended)
  * Centralized enums, keys, and reusable values
  */
 
@@ -40,7 +40,25 @@ export enum FiatCurrency {
   GBP = 'GBP'
 }
 
-// API Error codes
+// Contact label options (for selects, enums, type safety)
+export enum ContactLabel {
+  FRIEND = "Friend",
+  FAMILY = "Family",
+  MERCHANT = "Merchant",
+  COLLEAGUE = "Colleague"
+}
+
+export const CONTACT_LABEL_OPTIONS: Array<{ label: string; value: ContactLabel }> = [
+  { label: "Friend", value: ContactLabel.FRIEND },
+  { label: "Family", value: ContactLabel.FAMILY },
+  { label: "Merchant", value: ContactLabel.MERCHANT },
+  { label: "Colleague", value: ContactLabel.COLLEAGUE }
+];
+
+// Universal email regex
+export const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// API Error codes (extended)
 export enum ErrorCode {
   // Auth errors
   INVALID_CREDENTIALS = 'INVALID_CREDENTIALS',
@@ -50,24 +68,26 @@ export enum ErrorCode {
   TOKEN_EXPIRED = 'TOKEN_EXPIRED',
   MFA_REQUIRED = 'MFA_REQUIRED',
   MFA_INVALID = 'MFA_INVALID',
-  
   // Validation errors
   VALIDATION_ERROR = 'VALIDATION_ERROR',
   INVALID_EMAIL = 'INVALID_EMAIL',
   WEAK_PASSWORD = 'WEAK_PASSWORD',
   MISSING_REQUIRED_FIELD = 'MISSING_REQUIRED_FIELD',
-  
   // Resource errors
   NOT_FOUND = 'NOT_FOUND',
   ALREADY_EXISTS = 'ALREADY_EXISTS',
-  
   // Auth/permission errors
   UNAUTHORIZED = 'UNAUTHORIZED',
   FORBIDDEN = 'FORBIDDEN',
-  
   // Server errors
   INTERNAL_ERROR = 'INTERNAL_ERROR',
-  DATABASE_ERROR = 'DATABASE_ERROR'
+  DATABASE_ERROR = 'DATABASE_ERROR',
+  // --- Contacts (new) ---
+  CONTACT_ADD_FAILED = 'CONTACT_ADD_FAILED',
+  CONTACT_UPDATE_FAILED = 'CONTACT_UPDATE_FAILED',
+  CONTACT_DELETE_FAILED = 'CONTACT_DELETE_FAILED',
+  CONTACT_INVALID_PUBLIC_KEY = 'CONTACT_INVALID_PUBLIC_KEY',
+  CONTACT_NOT_FOUND = 'CONTACT_NOT_FOUND'
 }
 
 // HTTP Status codes
@@ -123,18 +143,14 @@ export const API_ENDPOINTS = {
   MFA_VERIFY: '/api/auth/mfa-verify',
   MFA_DISABLE: '/api/auth/mfa-disable',
   MFA_LOGIN: '/api/auth/mfa-login',
-  
   // Profile
   PROFILE: '/api/profile',
   PROFILE_SEARCH: '/api/profile/search',
-  
   // Wallet
   WALLET: '/api/wallet',
   WALLET_VERIFY: '/api/wallet/verify-wallet',
-  
   // Blocks
   BLOCKS: '/api/blocks',
-  
   // Contacts
   CONTACTS: '/api/contacts'
 } as const;
@@ -158,3 +174,4 @@ export const ROUTES = {
 } as const;
 
 export type Route = typeof ROUTES[keyof typeof ROUTES];
+

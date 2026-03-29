@@ -1,13 +1,12 @@
+import { parseApiError } from "@/utils/errorUtils";
+
 interface ImportMetaEnv {
   readonly VITE_WORKER_URL: string
 }
 
-interface ImportMeta {
-  readonly env: ImportMetaEnv
-}
 
-const WORKER_URL = import.meta.env.VITE_WORKER_URL || 'http://localhost:8787';
-
+const WORKER_URL = import.meta.env.VITE_WORKER_URL;
+  
 interface ApiResponse<T = any> {
   ok: boolean;
   data?: T;
@@ -31,8 +30,9 @@ export async function apiFetch<T = any>(endpoint: string, options: RequestInit =
     });
 
     if (!response.ok) {
-      const err = await response.text();
-      return { ok: false, error: err };
+      const rawErr = await response.text();
+      const errorMessage = parseApiError(rawErr);
+      return { ok: false, error: errorMessage };
     }
 
     const data = await response.json();

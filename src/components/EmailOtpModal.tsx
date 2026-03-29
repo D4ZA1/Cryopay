@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button";
 import { Loader2 } from 'lucide-react';
 import { apiFetch, login } from '../lib/api';
+import { getErrorMessage } from '@/lib/utils';
 
 interface EmailOtpModalProps {
   isOpen: boolean;
@@ -32,12 +33,12 @@ const EmailOtpModal = ({ isOpen, onClose, userEmail, onVerified }: EmailOtpModal
         method: 'POST',
         body: JSON.stringify({ email: userEmail }),
       });
-      if (!res.ok) throw new Error(res.error || 'Failed to send OTP');
+       if (!res.ok) throw new Error(getErrorMessage(res.error || 'Failed to send OTP'));
       setLastSentAt(Date.now());
       setSecondsLeft(RESEND_COOLDOWN);
-    } catch (err: any) {
-      console.error('[EmailOtpModal] send error', err);
-      setError(err.message || String(err));
+     } catch (err: any) {
+       console.error('[EmailOtpModal] send error', err);
+       setError(getErrorMessage(err));
     } finally {
       setIsLoading(false);
     }
@@ -100,9 +101,9 @@ const EmailOtpModal = ({ isOpen, onClose, userEmail, onVerified }: EmailOtpModal
     setError('');
     try {
       await checkSession();
-    } catch (err: any) {
-      setError(err.message || String(err));
-    } finally {
+     } catch (err: any) {
+       setError(getErrorMessage(err));
+     } finally {
       setIsLoading(false);
     }
   };

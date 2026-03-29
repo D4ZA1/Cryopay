@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/ui/button';
 import { apiFetch, saveWallet } from '../lib/api';
 import { generateKeyPair, exportJwk, encryptJwkWithPassword, jwkThumbprint } from '../lib/crypto';
+import { getErrorMessage } from '../lib/utils';
 
 const Wallet: React.FC = () => {
   const navigate = useNavigate();
@@ -50,11 +51,11 @@ const Wallet: React.FC = () => {
       const response = await saveWallet(publicKeyStr, encryptedStr, false);
       console.log('[Wallet] wallet save response:', response);
 
-      if (!response.ok) {
-        console.error('wallet save error', response.error);
-        setStatus('Failed to save wallet: ' + response.error);
-        return;
-      }
+       if (!response.ok) {
+          console.error('wallet save error', response.error);
+          setStatus('Failed to save wallet: ' + getErrorMessage(response.error));
+          return;
+        }
 
       // Also save to profile table
       if (publicJwk) {

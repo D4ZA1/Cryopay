@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { verifyWallet, getWallet } from '../lib/api';
 import { decryptJwkWithPassword, signString } from '../lib/crypto';
 import { Button } from '../components/ui/button';
+import { getErrorMessage } from '../lib/utils';
 
 const ConfirmKey: React.FC = () => {
   const { user } = useAuth();
@@ -47,14 +48,14 @@ const ConfirmKey: React.FC = () => {
       const signature = await signString(privateJwk, challenge);
 
       setStatus('Sending signature to server for verification...');
-      try {
-        // Use Worker API verify-wallet endpoint
-        const verifyRes = await verifyWallet(walletRow.public_key, challenge, signature);
-        if (!verifyRes.ok) {
-          console.error('Worker verify error', verifyRes.error);
-          setStatus('Server verification failed: ' + (verifyRes.error || 'Unknown error'));
-          return;
-        }
+       try {
+         // Use Worker API verify-wallet endpoint
+          const verifyRes = await verifyWallet(walletRow.public_key, challenge, signature);
+          if (!verifyRes.ok) {
+            console.error('Worker verify error', verifyRes.error);
+            setStatus('Server verification failed: ' + getErrorMessage(verifyRes.error));
+            return;
+          }
         setStatus('Wallet verified by server.');
         // Refresh wallet data to get updated verified status
         const walletRes = await getWallet();

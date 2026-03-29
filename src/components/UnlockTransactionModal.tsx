@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2 } from 'lucide-react';
 import { decryptJSONWithPassword } from '../lib/crypto';
 import { setSymKey } from '../lib/symmetricSession';
+import { getErrorMessage } from '@/lib/utils';
 
 interface UnlockTransactionModalProps {
   isOpen: boolean;
@@ -36,9 +37,9 @@ const UnlockTransactionModal: React.FC<UnlockTransactionModalProps> = ({ isOpen,
       if (onUnlocked) onUnlocked(password);
       // do not auto-close if we decrypted data; user can close after inspection
       if (!encryptedBlob) onClose();
-    } catch (e: any) {
-      console.error('Unlock/decrypt failed', e);
-      setError(e?.message || String(e));
+     } catch (e: any) {
+       console.error('Unlock/decrypt failed', e);
+       setError(getErrorMessage(e));
     } finally {
       setIsLoading(false);
     }

@@ -10,6 +10,7 @@ import { getSymKey, setSymKey } from '../lib/symmetricSession';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import UnlockTransactionModal from '../components/UnlockTransactionModal';
+import { getErrorMessage } from '@/lib/utils';
 // Minimum transaction amounts
 const MIN_FIAT_AMOUNT = 1; // $1 minimum
 const MIN_CRYPTO_AMOUNT = 0.00000001; // Smallest crypto unit
@@ -204,11 +205,11 @@ const BuySell = () => {
     const blockData = JSON.stringify({ public_summary, encrypted_blob: encrypted, user_id: payload.user_id });
     const blockRes = await createBlock(blockData, previous_hash || null);
 
-    if (!blockRes.ok) {
-      console.error('failed to insert block', blockRes.error);
-      alert('Failed to persist transaction: ' + blockRes.error);
-      return;
-    }
+     if (!blockRes.ok) {
+       console.error('failed to insert block', blockRes.error);
+       alert('Failed to persist transaction: ' + getErrorMessage(blockRes.error));
+       return;
+     }
     // navigate within SPA to transactions (avoid full reload which can drop auth)
     navigate('/transactions');
   };
@@ -272,10 +273,10 @@ const BuySell = () => {
     const currentKey = getSymKey();
     if (currentKey) {
       // we have an unlocked wallet-derived key in memory — use it
-      proceedWithPayload(payload, currentKey).catch((e) => {
-        console.error('persist error', e);
-        alert('Transaction failed: ' + (e?.message || e));
-      });
+       proceedWithPayload(payload, currentKey).catch((e) => {
+         console.error('persist error', e);
+         alert('Transaction failed: ' + getErrorMessage(e));
+       });
     } else {
       // ask user to unlock (provide wallet-derived key)
       setPendingPayload(payload);

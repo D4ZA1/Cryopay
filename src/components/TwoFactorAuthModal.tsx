@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 
 import { Loader2 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
+import { getErrorMessage } from '@/lib/utils';
 
 interface TwoFactorAuthModalProps {
   isOpen: boolean;
@@ -56,9 +57,9 @@ const TwoFactorAuthModal: React.FC<TwoFactorAuthModalProps> = ({ isOpen, onClose
             setQrCode(null);
           }
         }
-      } catch (err: any) {
-        console.error('[TwoFactorAuthModal] enroll error', err);
-        setError(err.message || String(err));
+       } catch (err: any) {
+         console.error('[TwoFactorAuthModal] enroll error', err);
+         setError(getErrorMessage(err));
       } finally {
         setIsLoading(false);
       }
@@ -101,9 +102,9 @@ const TwoFactorAuthModal: React.FC<TwoFactorAuthModalProps> = ({ isOpen, onClose
       // On successful verification, Supabase should establish a higher assurance session.
       if (onVerified) onVerified();
       onClose();
-    } catch (err: any) {
-      console.error('[TwoFactorAuthModal] verification error', err);
-      setError(err.message || String(err));
+     } catch (err: any) {
+       console.error('[TwoFactorAuthModal] verification error', err);
+       setError(getErrorMessage(err));
     } finally {
       setIsLoading(false);
     }
