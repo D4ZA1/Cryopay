@@ -69,3 +69,21 @@ export function getErrorMessageFromCodeOrZod(error: unknown): string {
   // Fallback: use generic util
   return typeof error === "string" ? error : ERROR_MESSAGES[ErrorCode.INTERNAL_ERROR];
 }
+
+/**
+ * Parse error from HTTP response - handles JSON with error/message fields
+ */
+export function parseApiError(rawText: string): string {
+  try {
+    const parsed = JSON.parse(rawText);
+    if (parsed.error && typeof parsed.error === "string") {
+      return parsed.error;
+    }
+    if (parsed.message && typeof parsed.message === "string") {
+      return parsed.message;
+    }
+  } catch {
+    // Not JSON
+  }
+  return rawText || "Request failed";
+}
