@@ -7,6 +7,7 @@ import { Separator } from "@/components/ui/separator";
 import { Mail, Lock, Eye, EyeOff, Wallet, Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { apiFetch } from '../lib/api';
+import { getErrorMessage } from '../lib/utils';
 
 const CryoPayLogo = () => ( <div className="text-2xl font-bold tracking-tighter">Cryo<span className="text-slate-500">Pay</span></div> );
 
@@ -33,9 +34,9 @@ const LoginScreen = () => {
       });
       
       if (!response.ok) {
-        console.error('[LoginScreen] login error', response.error);
-        throw new Error(response.error || 'Login failed');
-      }
+         console.error('[LoginScreen] login error', response.error);
+         throw new Error(getErrorMessage(response.error || 'Login failed'));
+       }
       
       console.log('[LoginScreen] login success', response.data);
       const { token, user } = response.data;
@@ -55,8 +56,8 @@ const LoginScreen = () => {
       navigate('/dashboard');
 
     } catch (err: any) {
-      setError(err.message);
-    } finally {
+       setError(getErrorMessage(err));
+     } finally {
       setIsLoading(false);
     }
   };

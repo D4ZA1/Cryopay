@@ -7,6 +7,7 @@ import { ShieldAlert, Copy, Eye, QrCode, MessageSquare } from 'lucide-react';
 import { apiFetch, getProfile, saveWallet } from '../lib/api';
 import { useEffect } from 'react';
 import { generateKeyPair, exportJwk, jwkThumbprint, encryptJwkWithPassword } from '../lib/crypto';
+import { getErrorMessage } from '@/lib/utils';
 // Auth handled via Worker API
 
 const CryoPayLogo = () => ( <div className="text-2xl font-bold tracking-tighter">Cryo<span className="text-slate-500">Pay</span></div> );
@@ -176,19 +177,19 @@ const SecureWalletScreen = () => {
             return;
           }
         }
-        const updErr = await apiFetch('/api/profile', {
-          method: 'PUT',
-          body: JSON.stringify({ 
-            public_key: JSON.stringify(publicKeyWithThumb),
-            encrypted_private_key: encryptedPrivateKey
-          }),
-        });
-        console.log('[SecureWallet] profile update result:', updErr);
-        if (!updErr.ok) {
-          console.warn('failed to persist keys to profile', updErr.error);
-          setError('Failed to save wallet to profile: ' + updErr.error);
-          return;
-        }
+         const updErr = await apiFetch('/api/profile', {
+           method: 'PUT',
+           body: JSON.stringify({ 
+             public_key: JSON.stringify(publicKeyWithThumb),
+             encrypted_private_key: encryptedPrivateKey
+           }),
+         });
+          console.log('[SecureWallet] profile update result:', updErr);
+          if (!updErr.ok) {
+            console.warn('failed to persist keys to profile', updErr.error);
+            setError('Failed to save wallet to profile: ' + getErrorMessage(updErr.error));
+            return;
+          }
       }
 
       // Also save to wallet table so other users can discover public_key by email

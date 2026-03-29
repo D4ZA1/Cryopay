@@ -8,6 +8,7 @@ import { User, Shield, Bell, Wallet, Globe } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { getProfile, updateProfile, apiFetch } from '../lib/api';
 import { useNavigate } from 'react-router-dom';
+import { getErrorMessage } from '@/lib/utils';
 
 const Settings = () => {
   const { user, refreshUser } = useAuth();
@@ -88,9 +89,9 @@ const Settings = () => {
         phone: profile.phone || undefined,
       });
 
-      if (!updateRes.ok) {
-        throw new Error(updateRes.error || 'Failed to update profile');
-      }
+       if (!updateRes.ok) {
+         throw new Error(getErrorMessage(updateRes.error || 'Failed to update profile'));
+       }
 
       // Refresh profile data
       const profRes = await getProfile();
@@ -127,9 +128,9 @@ const Settings = () => {
       const updateRes = await updateProfile({
         notifications: JSON.stringify(notifications),
       });
-      if (!updateRes.ok) {
-        throw new Error(updateRes.error || 'Failed to save notifications');
-      }
+       if (!updateRes.ok) {
+         throw new Error(getErrorMessage(updateRes.error || 'Failed to save notifications'));
+       }
       setMessage('Notification preferences saved');
     } catch (e: any) {
       console.error('[Settings] saveNotifications error', e);
@@ -287,7 +288,7 @@ const Settings = () => {
                     method: 'POST',
                     body: JSON.stringify({ password: el.value }),
                   });
-                  if (!pwRes.ok) throw new Error(pwRes.error || 'Failed to update password');
+                  if (!pwRes.ok) throw new Error(getErrorMessage(pwRes.error || 'Failed to update password'));
                   setMessage('Password updated successfully');
                   el.value = '';
                 } catch (e: any) {

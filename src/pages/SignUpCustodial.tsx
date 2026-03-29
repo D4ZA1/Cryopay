@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Mail, Lock, Eye, EyeOff, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
 import { apiFetch } from '../lib/api';
+import { getErrorMessage } from '@/lib/utils';
 
 const CryoPayLogo = () => ( <div className="text-2xl font-bold tracking-tighter">Cryo<span className="text-slate-500">Pay</span></div> );
 const PasswordRequirement = ({ met, text }: { met: boolean; text: string }) => ( <div className={`flex items-center text-sm ${met ? 'text-green-600' : 'text-slate-500'}`}>{met ? <CheckCircle2 className="h-4 w-4 mr-2" /> : <XCircle className="h-4 w-4 mr-2" />}{text}</div> );
@@ -45,10 +46,10 @@ const SignUpCustodial = () => {
         body: JSON.stringify({ email, password, first_name: firstName, last_name: lastName }),
       });
       
-      if (!response.ok) {
-        console.error('[SignUpCustodial] register error', response.error);
-        throw new Error(response.error || 'Registration failed');
-      }
+       if (!response.ok) {
+         console.error('[SignUpCustodial] register error', response.error);
+         throw new Error(getErrorMessage(response.error || 'Registration failed'));
+       }
       
       console.log('[SignUpCustodial] register success', response.data);
       const { token, user } = response.data;
@@ -57,10 +58,10 @@ const SignUpCustodial = () => {
       // Navigate to secure-wallet with the user info
       navigate('/secure-wallet', { state: { walletAddress: null, privateKey: null, email, firstName, lastName, initialToken: token } });
 
-    } catch (err: any) {
-      console.error("Signup fetch error:", err);
-      setError(err.message || 'An unknown error occurred.');
-    } finally {
+     } catch (err: any) {
+       console.error("Signup fetch error:", err);
+       setError(getErrorMessage(err));
+     } finally {
       setIsLoading(false);
     }
   };

@@ -10,6 +10,7 @@ import { useAuth } from '../context/AuthContext';
 import { encryptJSONWithPassword } from '../lib/crypto';
 import { setSymKey } from '../lib/symmetricSession';
 import { JWK } from '../types/schemas';
+import { getErrorMessage } from '@/lib/utils';
 
 /**
  * Contact display type for UI rendering
@@ -172,18 +173,18 @@ const Contacts = () => {
         }
       }
 
-      const response = await createContact({
-        name: displayName,
-        address: newContact.address || newContact.publicKey,
-        email: prof.email,
-        label: newContact.label || undefined,
-        public_key: JSON.stringify(publicKeyVal),
-      });
+       const response = await createContact({
+         name: displayName,
+         address: newContact.address || newContact.publicKey,
+         email: prof.email,
+         label: newContact.label || undefined,
+         public_key: JSON.stringify(publicKeyVal),
+       });
 
-      if (!response.ok) {
-        console.error('contacts insert failed', response.error);
-        return alert('Failed to add contact: ' + response.error);
-      }
+        if (!response.ok) {
+          console.error('contacts insert failed', response.error);
+          return alert('Failed to add contact: ' + getErrorMessage(response.error));
+        }
 
       setContacts([...(contacts || []), response.data?.contact]);
       setNewContact({ name: '', address: '', email: '', label: '', publicKey: '' });
@@ -196,12 +197,12 @@ const Contacts = () => {
 
   const handleDeleteContact = async (id: number | string) => {
     if (!confirm('Are you sure you want to delete this contact?')) return;
-    try {
-      const response = await deleteContact(Number(id));
-      if (!response.ok) {
-        console.error('delete contact failed', response.error);
-        return alert('Failed to delete contact: ' + response.error);
-      }
+     try {
+        const response = await deleteContact(Number(id));
+        if (!response.ok) {
+          console.error('delete contact failed', response.error);
+          return alert('Failed to delete contact: ' + getErrorMessage(response.error));
+        }
       setContacts(contacts.filter(c => c.id !== id));
     } catch (e) {
       console.error('delete failed', e);
@@ -212,16 +213,16 @@ const Contacts = () => {
   const handleEditContact = async () => {
     if (!editingContact) return;
     try {
-      const response = await updateContact(Number(editingContact.id), {
-        name: editingContact.name,
-        address: editingContact.address,
-        label: editingContact.label || undefined,
-      });
+       const response = await updateContact(Number(editingContact.id), {
+         name: editingContact.name,
+         address: editingContact.address,
+         label: editingContact.label || undefined,
+       });
 
-      if (!response.ok) {
-        console.error('update contact failed', response.error);
-        return alert('Failed to update contact: ' + response.error);
-      }
+        if (!response.ok) {
+          console.error('update contact failed', response.error);
+          return alert('Failed to update contact: ' + getErrorMessage(response.error));
+        }
 
       setContacts(contacts.map(c => c.id === editingContact.id ? { ...c, ...editingContact } : c));
       setIsEditModalOpen(false);
@@ -441,12 +442,12 @@ const Contacts = () => {
                   if (recipientThumb) public_summary.to_thumbprint = recipientThumb;
                   if (senderThumb) public_summary.from_thumbprint = senderThumb;
 
-                  const blockData = JSON.stringify({ public_summary, encrypted_blob: encrypted, user_id: user.id });
-                  const blockRes = await createBlock(blockData, previous_hash || undefined);
-                  if (!blockRes.ok) {
-                    console.error('send insert error', blockRes.error);
-                    return alert('Failed to send: ' + blockRes.error);
-                  }
+                   const blockData = JSON.stringify({ public_summary, encrypted_blob: encrypted, user_id: user.id });
+                    const blockRes = await createBlock(blockData, previous_hash || undefined);
+                    if (!blockRes.ok) {
+                      console.error('send insert error', blockRes.error);
+                      return alert('Failed to send: ' + getErrorMessage(blockRes.error));
+                    }
 
                   // store session key for convenience
                   setSymKey(sendPassword);

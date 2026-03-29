@@ -15,7 +15,7 @@ export default defineConfig({
     setupFiles: ['./src/test/setup.ts'],
     include: ['src/**/*.{test,spec}.{js,jsx,ts,tsx}'],
     env: {
-      VITE_WORKER_URL: 'https://cryo-worker.jaswanthwork84-cc7.workers.dev',
+      VITE_WORKER_URL: 'http://localhost:8787',
     },
   },
 })
