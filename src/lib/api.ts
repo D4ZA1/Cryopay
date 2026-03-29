@@ -4,12 +4,9 @@ interface ImportMetaEnv {
   readonly VITE_WORKER_URL: string
 }
 
-interface ImportMeta {
-  readonly env: ImportMetaEnv
-}
 
 const WORKER_URL = import.meta.env.VITE_WORKER_URL;
-
+  
 interface ApiResponse<T = any> {
   ok: boolean;
   data?: T;
