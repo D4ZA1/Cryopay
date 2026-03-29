@@ -6,7 +6,7 @@ interface ImportMeta {
   readonly env: ImportMetaEnv
 }
 
-const WORKER_URL = import.meta.env.VITE_WORKER_URL || 'http://localhost:8787';
+const WORKER_URL = import.meta.env.VITE_WORKER_URL;
 
 interface ApiResponse<T = any> {
   ok: boolean;
