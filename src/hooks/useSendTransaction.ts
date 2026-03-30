@@ -1,6 +1,7 @@
 import { useSendTransaction, useWaitForTransactionReceipt } from 'wagmi';
 import { parseEther } from 'viem';
 import { useState, useCallback } from 'react';
+import { getPublicClient } from '../lib/web3';
 
 /**
  * Hook for sending ETH transactions on-chain
@@ -55,22 +56,34 @@ export function useSendEth() {
         );
       });
 
-      // Wait for receipt confirmation
-      let confirmedReceipt: any = null;
-      let retries = 0;
-      const maxRetries = 120; // 2 minutes with 1-second checks
-      
-      while (retries < maxRetries) {
-        if (receipt && receipt.blockNumber) {
-          confirmedReceipt = receipt;
-          break;
+      // Poll for receipt using getTransactionReceipt (simple RPC call, not waitForTransactionReceipt)
+      // This avoids potential stack overflow issues with viem's waitForTransactionReceipt
+      const publicClient = getPublicClient();
+      let confirmedReceipt = null;
+      let attempts = 0;
+      const maxAttempts = 120; // 2 minutes with 1-second intervals
+
+      while (!confirmedReceipt && attempts < maxAttempts) {
+        try {
+          const receipt = await publicClient.getTransactionReceipt({ 
+            hash: txHash as `0x${string}`,
+          });
+          if (receipt) {
+            confirmedReceipt = receipt;
+            break;
+          }
+        } catch (e) {
+          // getTransactionReceipt might fail before tx is in a block, that's normal
+          console.debug('Receipt not yet available, retrying...', e);
         }
+        
+        // Wait 1 second before retrying
         await new Promise(resolve => setTimeout(resolve, 1000));
-        retries++;
+        attempts++;
       }
 
       if (!confirmedReceipt) {
-        throw new Error('Transaction confirmation timeout');
+        throw new Error('Transaction confirmation timeout after 2 minutes');
       }
 
       return {
@@ -82,7 +95,7 @@ export function useSendEth() {
       setLocalError(errorMessage);
       throw error;
     }
-  }, [sendTransaction, receipt]);
+  }, [sendTransaction]);
 
   /**
    * Send ETH to an address (returns hash immediately)
