@@ -81,7 +81,7 @@ const Contacts = () => {
   const [ethPrice, setEthPrice] = useState<number>(3000);
   const { user, balance } = useAuth();
   const { isConnected, balance: ethBalance } = useEthereum();
-  const { sendEth, hash: txHash, isSending, isConfirming } = useSendEth();
+  const { sendEthAndWait, isSending, isConfirming } = useSendEth();
 
   // Fetch real ETH price on mount
   useEffect(() => {
@@ -469,17 +469,20 @@ const Contacts = () => {
                     tx_hash: null as string | null,
                   };
 
-                  try {
+                   try {
                     // STEP 1: Send real blockchain transaction if enabled
                     if (useBlockchain && sendCrypto === 'ETH') {
                       try {
                         console.log(`Sending ${amountCrypto} ETH to ${sendTarget.address}...`);
-                        await sendEth(sendTarget.address, amountCrypto.toString());
+                        const { hash: txHash, receipt } = await sendEthAndWait(sendTarget.address, amountCrypto.toString());
                         
-                        // Wait for transaction hash
-                        if (txHash) {
+                        // Transaction is confirmed, we have both hash and receipt
+                        if (txHash && receipt) {
                           payload.tx_hash = txHash;
-                          console.log('Transaction hash:', txHash);
+                          console.log('Transaction confirmed!');
+                          console.log('Hash:', txHash);
+                          console.log('Block Number:', receipt.blockNumber);
+                          console.log('Gas Used:', receipt.gasUsed);
                         }
                       } catch (error: any) {
                         console.error('Blockchain transaction failed:', error);
