@@ -131,9 +131,19 @@ describe('Frontend Constants', () => {
       });
     });
 
+    describe('Contact errors', () => {
+      it('should have correct contact error codes', () => {
+        expect(ErrorCode.CONTACT_ADD_FAILED).toBe('CONTACT_ADD_FAILED');
+        expect(ErrorCode.CONTACT_UPDATE_FAILED).toBe('CONTACT_UPDATE_FAILED');
+        expect(ErrorCode.CONTACT_DELETE_FAILED).toBe('CONTACT_DELETE_FAILED');
+        expect(ErrorCode.CONTACT_INVALID_PUBLIC_KEY).toBe('CONTACT_INVALID_PUBLIC_KEY');
+        expect(ErrorCode.CONTACT_NOT_FOUND).toBe('CONTACT_NOT_FOUND');
+      });
+    });
+
     it('should have all expected error codes', () => {
       const errorCodes = Object.values(ErrorCode);
-      expect(errorCodes).toHaveLength(17);
+      expect(errorCodes).toHaveLength(22);
     });
   });
 

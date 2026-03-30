@@ -9,6 +9,20 @@ class MockResizeObserver {
 }
 global.ResizeObserver = MockResizeObserver as unknown as typeof ResizeObserver;
 
+// Mock IntersectionObserver for scroll animations
+class MockIntersectionObserver {
+  readonly root: Element | null = null;
+  readonly rootMargin: string = '';
+  readonly thresholds: ReadonlyArray<number> = [];
+  
+  constructor(_callback: IntersectionObserverCallback, _options?: IntersectionObserverInit) {}
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+  takeRecords(): IntersectionObserverEntry[] { return []; }
+}
+global.IntersectionObserver = MockIntersectionObserver as unknown as typeof IntersectionObserver;
+
 // Mock window.crypto.subtle for testing
 const mockSubtle = {
   generateKey: vi.fn(),

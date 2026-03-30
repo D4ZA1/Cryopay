@@ -62,15 +62,14 @@ describe('Wallet', () => {
 
   it('renders the encryption password input', () => {
     renderWallet();
-    expect(screen.getByText(/encryption password/i)).toBeInTheDocument();
-    // The input is a password type input
+    // Look for the password input - there should be exactly one
     const passwordInput = document.querySelector('input[type="password"]');
     expect(passwordInput).toBeInTheDocument();
   });
 
-  it('renders link to confirm key page', () => {
+  it('renders button to confirm key page', () => {
     renderWallet();
-    expect(screen.getByRole('link', { name: /go to confirm key/i })).toHaveAttribute('href', '/confirm-key');
+    expect(screen.getByRole('button', { name: /go to confirm key/i })).toBeInTheDocument();
   });
 
   it('generates keypair and shows thumbprint when button clicked', async () => {

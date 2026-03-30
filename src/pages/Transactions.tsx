@@ -2,9 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import { Search, Download, ArrowUpRight, ArrowDownLeft, RefreshCw } from 'lucide-react';
-import { getBlocks, getProfile, apiFetch } from '../lib/api';
+import { Search, Download, ArrowUpRight, ArrowDownLeft, RefreshCw, Link2, Unlink } from 'lucide-react';
+import { getBlocks, getProfile, apiFetch, getBlockchainTransactions } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
+import { useEthereum } from '@/context/EthereumContext';
 import { decryptJSONWithPassword } from '../lib/crypto';
 import { setSymKey, getSymKey } from '../lib/symmetricSession';
 import { 
@@ -66,6 +67,12 @@ const Transactions = () => {
   const [openRow, setOpenRow] = useState<number | null>(null);
   const [passwords, setPasswords] = useState<Record<string,string>>({});
   const [decryptedMap, setDecryptedMap] = useState<Record<string, PublicSummary>>({});
+  
+  // Blockchain transactions state
+  const { isConnected: isEthConnected, address: ethAddress } = useEthereum();
+  const [blockchainTx, setBlockchainTx] = useState<any[]>([]);
+  const [blockchainLoading, setBlockchainLoading] = useState(false);
+  const [showBlockchain, setShowBlockchain] = useState(false);
 
   // Function to fetch transactions (extracted for refresh button)
   const fetchTransactions = async () => {
@@ -175,10 +182,33 @@ const Transactions = () => {
     }
   };
 
+  // Function to fetch blockchain transactions
+  const fetchBlockchainTransactions = async () => {
+    if (!isEthConnected) return;
+    setBlockchainLoading(true);
+    try {
+      const response = await getBlockchainTransactions(50, 0);
+      if (response.ok && response.data?.data?.transactions) {
+        setBlockchainTx(response.data.data.transactions);
+      }
+    } catch (e) {
+      console.error('Failed to fetch blockchain transactions', e);
+    } finally {
+      setBlockchainLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchTransactions();
     return () => {};
   }, [user]);
+
+  // Fetch blockchain transactions when connected
+  useEffect(() => {
+    if (isEthConnected) {
+      fetchBlockchainTransactions();
+    }
+  }, [isEthConnected]);
 
   const filteredTransactions = transactions.filter(tx => {
     const matchesSearch = 
@@ -284,7 +314,30 @@ const Transactions = () => {
                 className="pl-10 bg-slate-800/50 border-white/[0.06] text-white placeholder:text-slate-500 focus:border-emerald-500/50"
               />
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
+              {/* Off-chain / Blockchain toggle */}
+              {isEthConnected && (
+                <div className="flex gap-2">
+                  <Button
+                    variant={!showBlockchain ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setShowBlockchain(false)}
+                    className={!showBlockchain ? "bg-emerald-500 text-black hover:bg-emerald-600" : "bg-white/[0.06] text-slate-400 border-white/[0.06] hover:bg-white/[0.1]"}
+                  >
+                    <Unlink className="h-4 w-4 mr-2" />
+                    Off-chain
+                  </Button>
+                  <Button
+                    variant={showBlockchain ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setShowBlockchain(true)}
+                    className={showBlockchain ? "bg-emerald-500 text-black hover:bg-emerald-600" : "bg-white/[0.06] text-slate-400 border-white/[0.06] hover:bg-white/[0.1]"}
+                  >
+                    <Link2 className="h-4 w-4 mr-2" />
+                    Blockchain
+                  </Button>
+                </div>
+              )}
               <select
                 value={filterType}
                 onChange={(e) => setFilterType(e.target.value)}
@@ -356,7 +409,91 @@ const Transactions = () => {
                 </tr>
               </thead>
               <tbody>
-                {filteredTransactions.length === 0 ? (
+                {/* Blockchain transactions view */}
+                {showBlockchain && isEthConnected ? (
+                  blockchainLoading ? (
+                    <tr>
+                      <td colSpan={5} className="text-center py-8 text-slate-500">
+                        Loading blockchain transactions...
+                      </td>
+                    </tr>
+                  ) : blockchainTx.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="text-center py-8 text-slate-500">
+                        No blockchain transactions found
+                      </td>
+                    </tr>
+                  ) : (
+                    blockchainTx.map((tx) => {
+                      const isSent = ethAddress && tx.from_address?.toLowerCase() === ethAddress.toLowerCase();
+                      const statusDisplay = tx.status === 'confirmed' ? 'Completed' : tx.status === 'pending' ? 'Pending' : 'Failed';
+                      const amountEth = tx.amount_wei ? parseFloat(tx.amount_wei) / 1e18 : 0;
+                      
+                      return (
+                        <tr key={tx.id} className="border-b border-white/[0.06] hover:bg-white/[0.02] transition-colors">
+                          <td className="py-4 px-4">
+                            <div className="flex items-center gap-3">
+                              <span className="p-2 bg-white/[0.06] rounded-full">
+                                {isSent ? (
+                                  <ArrowUpRight className="h-5 w-5 text-red-400" />
+                                ) : (
+                                  <ArrowDownLeft className="h-5 w-5 text-emerald-400" />
+                                )}
+                              </span>
+                              <div>
+                                <div className="font-medium flex items-center gap-2 text-white">
+                                  {isSent ? `To ${tx.to_address?.slice(0, 8)}...` : `From ${tx.from_address?.slice(0, 8)}...`}
+                                  <span className="text-xs px-2 py-0.5 rounded bg-blue-500/20 text-blue-400 border border-blue-500/30">
+                                    <Link2 className="h-3 w-3 inline mr-1" />
+                                    On-chain
+                                  </span>
+                                </div>
+                                <div className="text-sm text-slate-500">
+                                  TX: {tx.tx_hash?.slice(0, 12)}...
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="py-4 px-4">
+                            <div className="text-sm text-slate-400">
+                              {tx.confirmed_at || tx.created_at}
+                            </div>
+                            {tx.block_number && (
+                              <div className="text-xs text-slate-500">Block #{tx.block_number}</div>
+                            )}
+                          </td>
+                          <td className="py-4 px-4 text-right">
+                            <div className={`font-medium ${!isSent ? 'text-emerald-400' : 'text-white'}`}>
+                              {isSent ? '-' : '+'}{amountEth.toFixed(6)} {tx.currency || 'ETH'}
+                            </div>
+                          </td>
+                          <td className="py-4 px-4 text-center">
+                            <span className={`px-3 py-1 text-xs font-semibold rounded-full ${getStatusClass(statusDisplay)}`}>
+                              {statusDisplay}
+                            </span>
+                          </td>
+                          <td className="py-4 px-4 text-right">
+                            <div className="flex items-center justify-end">
+                              {tx.tx_hash && (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-slate-400 hover:text-white hover:bg-white/[0.06]"
+                                  onClick={() => window.open(`https://etherscan.io/tx/${tx.tx_hash}`, '_blank')}
+                                >
+                                  View on Etherscan
+                                </Button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )
+                ) : (
+                  /* Off-chain transactions view (existing code) */
+                  filteredTransactions.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="text-center py-8 text-slate-500">
                       No transactions found
@@ -472,6 +609,7 @@ const Transactions = () => {
                     )}
                     </React.Fragment>
                   ))
+                )
                 )}
               </tbody>
             </table>

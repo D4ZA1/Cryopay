@@ -8,6 +8,12 @@ import * as api from '../../lib/api';
 import { TransactionDirection } from '../../constants';
 import { Block } from '../../types/schemas';
 
+// Mock EthereumContext
+const mockUseEthereum = vi.fn();
+vi.mock('@/context/EthereumContext', () => ({
+  useEthereum: () => mockUseEthereum(),
+}));
+
 // Mock API functions
 vi.mock('../../lib/api', () => ({
   getBlocks: vi.fn().mockResolvedValue({ 
@@ -30,6 +36,10 @@ vi.mock('../../lib/api', () => ({
       return Promise.resolve({ ok: false });
     }
     return Promise.resolve({ ok: false });
+  }),
+  getBlockchainTransactions: vi.fn().mockResolvedValue({
+    ok: true,
+    data: { data: { transactions: [] } }
   }),
 }));
 
@@ -115,6 +125,15 @@ describe('Transactions', () => {
       }
       return Promise.resolve({ ok: false });
     });
+    // Default: wallet not connected
+    mockUseEthereum.mockReturnValue({
+      isConnected: false,
+      address: null,
+    });
+    (api.getBlockchainTransactions as Mock).mockResolvedValue({
+      ok: true,
+      data: { data: { transactions: [] } }
+    });
   });
 
   // Basic rendering tests
@@ -147,7 +166,302 @@ describe('Transactions', () => {
       renderWithProviders(<Transactions />);
       
       await waitFor(() => {
-        expect(screen.getByPlaceholderText(/Search by ID, address, or recipient/i)).toBeInTheDocument();
+        expect(screen.getByPlaceholderText(/Search by ID, address, crypto, or type/i)).toBeInTheDocument();
+      });
+    });
+  });
+
+  // Blockchain Tab Tests
+  describe('Blockchain Tab', () => {
+    it('should show blockchain tab when wallet is connected', async () => {
+      mockUseEthereum.mockReturnValue({
+        isConnected: true,
+        address: '0x1234567890abcdef1234567890abcdef12345678',
+      });
+
+      renderWithProviders(<Transactions />);
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /Blockchain/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /Off-chain/i })).toBeInTheDocument();
+      });
+    });
+
+    it('should NOT show blockchain tab when wallet is disconnected', async () => {
+      mockUseEthereum.mockReturnValue({
+        isConnected: false,
+        address: null,
+      });
+
+      renderWithProviders(<Transactions />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Transaction History')).toBeInTheDocument();
+      });
+
+      // Blockchain and Off-chain buttons should not be present
+      expect(screen.queryByRole('button', { name: /Blockchain/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /Off-chain/i })).not.toBeInTheDocument();
+    });
+
+    it('should show blockchain transactions in the blockchain tab', async () => {
+      const mockEthAddress = '0x1234567890abcdef1234567890abcdef12345678';
+      mockUseEthereum.mockReturnValue({
+        isConnected: true,
+        address: mockEthAddress,
+      });
+
+      const mockBlockchainTx = [
+        {
+          id: 'bc-tx-1',
+          tx_hash: '0xabc123def456789',
+          from_address: '0xsender1234567890',
+          to_address: mockEthAddress,
+          amount_wei: '1000000000000000000', // 1 ETH
+          currency: 'ETH',
+          status: 'confirmed',
+          confirmed_at: '2024-01-15T10:30:00Z',
+          block_number: 12345,
+        },
+        {
+          id: 'bc-tx-2',
+          tx_hash: '0xdef789abc123456',
+          from_address: mockEthAddress,
+          to_address: '0xrecipient9876543210',
+          amount_wei: '500000000000000000', // 0.5 ETH
+          currency: 'ETH',
+          status: 'confirmed',
+          confirmed_at: '2024-01-14T08:00:00Z',
+          block_number: 12340,
+        },
+      ];
+
+      (api.getBlockchainTransactions as Mock).mockResolvedValue({
+        ok: true,
+        data: { data: { transactions: mockBlockchainTx } },
+      });
+
+      renderWithProviders(<Transactions />);
+
+      // Wait for the blockchain tab button to appear
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /Blockchain/i })).toBeInTheDocument();
+      });
+
+      // Click on the Blockchain tab
+      const blockchainTab = screen.getByRole('button', { name: /Blockchain/i });
+      fireEvent.click(blockchainTab);
+
+      // Verify blockchain transactions are displayed
+      await waitFor(() => {
+        // Check for the "On-chain" badges which appear for blockchain transactions
+        const onChainBadges = screen.getAllByText('On-chain');
+        expect(onChainBadges.length).toBe(2); // Two transactions
+        // Check for truncated transaction hash
+        expect(screen.getByText(/TX: 0xabc123def4\.\.\./i)).toBeInTheDocument();
+        // Check for block number
+        expect(screen.getByText(/Block #12345/i)).toBeInTheDocument();
+      });
+    });
+
+    it('should show empty state when no blockchain transactions', async () => {
+      mockUseEthereum.mockReturnValue({
+        isConnected: true,
+        address: '0x1234567890abcdef1234567890abcdef12345678',
+      });
+
+      (api.getBlockchainTransactions as Mock).mockResolvedValue({
+        ok: true,
+        data: { data: { transactions: [] } },
+      });
+
+      renderWithProviders(<Transactions />);
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /Blockchain/i })).toBeInTheDocument();
+      });
+
+      const blockchainTab = screen.getByRole('button', { name: /Blockchain/i });
+      fireEvent.click(blockchainTab);
+
+      await waitFor(() => {
+        expect(screen.getByText(/No blockchain transactions found/i)).toBeInTheDocument();
+      });
+    });
+
+    it('should show loading state while fetching blockchain transactions', async () => {
+      mockUseEthereum.mockReturnValue({
+        isConnected: true,
+        address: '0x1234567890abcdef1234567890abcdef12345678',
+      });
+
+      // Create a promise that we can control
+      let resolvePromise: (value: any) => void;
+      const pendingPromise = new Promise((resolve) => {
+        resolvePromise = resolve;
+      });
+
+      (api.getBlockchainTransactions as Mock).mockReturnValue(pendingPromise);
+
+      renderWithProviders(<Transactions />);
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /Blockchain/i })).toBeInTheDocument();
+      });
+
+      const blockchainTab = screen.getByRole('button', { name: /Blockchain/i });
+      fireEvent.click(blockchainTab);
+
+      // Should show loading state
+      await waitFor(() => {
+        expect(screen.getByText(/Loading blockchain transactions/i)).toBeInTheDocument();
+      });
+
+      // Resolve the promise
+      resolvePromise!({
+        ok: true,
+        data: { data: { transactions: [] } },
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText(/No blockchain transactions found/i)).toBeInTheDocument();
+      });
+    });
+
+    it('should display sent blockchain transaction correctly', async () => {
+      const mockEthAddress = '0x1234567890abcdef1234567890abcdef12345678';
+      mockUseEthereum.mockReturnValue({
+        isConnected: true,
+        address: mockEthAddress,
+      });
+
+      const mockBlockchainTx = [
+        {
+          id: 'bc-tx-sent',
+          tx_hash: '0xsent123456789',
+          from_address: mockEthAddress, // User is sender
+          to_address: '0xrecipient9876543210',
+          amount_wei: '2000000000000000000', // 2 ETH
+          currency: 'ETH',
+          status: 'confirmed',
+          confirmed_at: '2024-01-15T10:30:00Z',
+          block_number: 12350,
+        },
+      ];
+
+      (api.getBlockchainTransactions as Mock).mockResolvedValue({
+        ok: true,
+        data: { data: { transactions: mockBlockchainTx } },
+      });
+
+      renderWithProviders(<Transactions />);
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /Blockchain/i })).toBeInTheDocument();
+      });
+
+      const blockchainTab = screen.getByRole('button', { name: /Blockchain/i });
+      fireEvent.click(blockchainTab);
+
+      await waitFor(() => {
+        // Sent transaction should show "To <address>"
+        expect(screen.getByText(/To 0xrecipi\.\.\./i)).toBeInTheDocument();
+        // Should show negative amount with minus sign
+        expect(screen.getByText(/-2\.000000 ETH/i)).toBeInTheDocument();
+      });
+    });
+
+    it('should display received blockchain transaction correctly', async () => {
+      const mockEthAddress = '0x1234567890abcdef1234567890abcdef12345678';
+      mockUseEthereum.mockReturnValue({
+        isConnected: true,
+        address: mockEthAddress,
+      });
+
+      const mockBlockchainTx = [
+        {
+          id: 'bc-tx-received',
+          tx_hash: '0xreceived123456789',
+          from_address: '0xsender1234567890',
+          to_address: mockEthAddress, // User is recipient
+          amount_wei: '3000000000000000000', // 3 ETH
+          currency: 'ETH',
+          status: 'confirmed',
+          confirmed_at: '2024-01-15T10:30:00Z',
+          block_number: 12355,
+        },
+      ];
+
+      (api.getBlockchainTransactions as Mock).mockResolvedValue({
+        ok: true,
+        data: { data: { transactions: mockBlockchainTx } },
+      });
+
+      renderWithProviders(<Transactions />);
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /Blockchain/i })).toBeInTheDocument();
+      });
+
+      const blockchainTab = screen.getByRole('button', { name: /Blockchain/i });
+      fireEvent.click(blockchainTab);
+
+      await waitFor(() => {
+        // Received transaction should show "From <address>"
+        expect(screen.getByText(/From 0xsender\.\.\./i)).toBeInTheDocument();
+        // Should show positive amount with plus sign
+        expect(screen.getByText(/\+3\.000000 ETH/i)).toBeInTheDocument();
+      });
+    });
+
+    it('should switch between off-chain and blockchain tabs', async () => {
+      const mockEthAddress = '0x1234567890abcdef1234567890abcdef12345678';
+      mockUseEthereum.mockReturnValue({
+        isConnected: true,
+        address: mockEthAddress,
+      });
+
+      // Set up off-chain transactions
+      const offChainBlock = createMockBlock({
+        id: 999,
+        kind: 'buy',
+        crypto: 'BTC',
+        amountFiat: 1000,
+      });
+
+      (api.getBlocks as Mock).mockResolvedValue({
+        ok: true,
+        data: { blocks: [offChainBlock] },
+      });
+
+      (api.getBlockchainTransactions as Mock).mockResolvedValue({
+        ok: true,
+        data: { data: { transactions: [] } },
+      });
+
+      renderWithProviders(<Transactions />);
+
+      // Should initially show off-chain transactions (Off-chain is default)
+      await waitFor(() => {
+        expect(screen.getByText(/Bought BTC/i)).toBeInTheDocument();
+      });
+
+      // Click Blockchain tab
+      const blockchainTab = screen.getByRole('button', { name: /Blockchain/i });
+      fireEvent.click(blockchainTab);
+
+      await waitFor(() => {
+        expect(screen.getByText(/No blockchain transactions found/i)).toBeInTheDocument();
+        // Off-chain transaction should not be visible
+        expect(screen.queryByText(/Bought BTC/i)).not.toBeInTheDocument();
+      });
+
+      // Click Off-chain tab to go back
+      const offChainTab = screen.getByRole('button', { name: /Off-chain/i });
+      fireEvent.click(offChainTab);
+
+      await waitFor(() => {
+        expect(screen.getByText(/Bought BTC/i)).toBeInTheDocument();
       });
     });
   });
@@ -1092,6 +1406,15 @@ describe('Extended Filter Functionality', () => {
       }
       return Promise.resolve({ ok: false });
     });
+    // Default: wallet not connected
+    mockUseEthereum.mockReturnValue({
+      isConnected: false,
+      address: null,
+    });
+    (api.getBlockchainTransactions as Mock).mockResolvedValue({
+      ok: true,
+      data: { data: { transactions: [] } }
+    });
   });
 
   it('should filter by Received type only', async () => {
@@ -1351,6 +1674,15 @@ describe('Transaction Label Display', () => {
       }
       return Promise.resolve({ ok: false });
     });
+    // Default: wallet not connected
+    mockUseEthereum.mockReturnValue({
+      isConnected: false,
+      address: null,
+    });
+    (api.getBlockchainTransactions as Mock).mockResolvedValue({
+      ok: true,
+      data: { data: { transactions: [] } }
+    });
   });
 
   it('should display "Bought [CRYPTO]" for buy transactions', async () => {
@@ -1502,6 +1834,15 @@ describe('Amount Display Formatting', () => {
       }
       return Promise.resolve({ ok: false });
     });
+    // Default: wallet not connected
+    mockUseEthereum.mockReturnValue({
+      isConnected: false,
+      address: null,
+    });
+    (api.getBlockchainTransactions as Mock).mockResolvedValue({
+      ok: true,
+      data: { data: { transactions: [] } }
+    });
   });
 
   it('should format negative amounts with minus sign', async () => {
@@ -1574,7 +1915,7 @@ describe('Amount Display Formatting', () => {
 
     await waitFor(() => {
       const amountElement = screen.getByText(/\$200\.00/);
-      expect(amountElement).toHaveClass('text-green-600');
+      expect(amountElement).toHaveClass('text-emerald-400');
     });
   });
 
@@ -1600,7 +1941,7 @@ describe('Amount Display Formatting', () => {
 
     await waitFor(() => {
       const amountElement = screen.getByText(/-\$150\.00/);
-      expect(amountElement).toHaveClass('text-slate-800');
+      expect(amountElement).toHaveClass('text-white');
     });
   });
 });
@@ -1632,6 +1973,15 @@ describe('Transaction Relevance Detection', () => {
         return Promise.resolve({ ok: false });
       }
       return Promise.resolve({ ok: false });
+    });
+    // Default: wallet not connected
+    mockUseEthereum.mockReturnValue({
+      isConnected: false,
+      address: null,
+    });
+    (api.getBlockchainTransactions as Mock).mockResolvedValue({
+      ok: true,
+      data: { data: { transactions: [] } }
     });
   });
 

@@ -200,3 +200,127 @@ export async function loginWithMfa(email: string, password: string, mfaCode: str
     body: JSON.stringify({ email, password, mfaCode }),
   });
 }
+
+// ============ MetaMask Authentication ============
+
+/**
+ * Register/login with MetaMask wallet
+ */
+export async function connectMetaMask(data: {
+  address: string;
+  signature: string;
+  message: string;
+  firstName?: string;
+  lastName?: string;
+}) {
+  return apiFetch('/api/auth/metamask-register', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+/**
+ * Login with MetaMask (existing user)
+ */
+export async function loginMetaMask(data: {
+  address: string;
+  signature: string;
+  message: string;
+}) {
+  return apiFetch('/api/auth/metamask-login', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+// ============ Ethereum API ============
+
+/**
+ * Get current gas prices
+ */
+export async function getGasPrice() {
+  return apiFetch('/api/ethereum/gas-price');
+}
+
+/**
+ * Get ETH balance for an address
+ */
+export async function getEthBalance(address: string) {
+  return apiFetch(`/api/ethereum/balance/${address}`);
+}
+
+/**
+ * Get contract ABI
+ */
+export async function getContractABI() {
+  return apiFetch('/api/ethereum/contract-abi');
+}
+
+/**
+ * Get contract address for current network
+ */
+export async function getContractAddress() {
+  return apiFetch('/api/ethereum/contract-address');
+}
+
+/**
+ * Get network info
+ */
+export async function getNetworkInfo() {
+  return apiFetch('/api/ethereum/network');
+}
+
+/**
+ * Check Ethereum connectivity health
+ */
+export async function checkEthereumHealth() {
+  return apiFetch('/api/ethereum/health');
+}
+
+// ============ Blockchain Transactions ============
+
+/**
+ * Record a transaction on-chain
+ */
+export async function recordTransaction(data: {
+  to: string;
+  amount: string;
+  currency: string;
+  offChainTxHash: string;
+  signature?: string;
+}) {
+  return apiFetch('/api/blockchain/record', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+/**
+ * Get transaction status
+ */
+export async function getTransactionStatus(txHash: string) {
+  return apiFetch(`/api/blockchain/status/${txHash}`);
+}
+
+/**
+ * Get user's blockchain transactions
+ */
+export async function getBlockchainTransactions(limit = 20, offset = 0) {
+  return apiFetch(`/api/blockchain/transactions?limit=${limit}&offset=${offset}`);
+}
+
+/**
+ * Get transactions from smart contract
+ */
+export async function getContractTransactions(limit = 10, offset = 0) {
+  return apiFetch(`/api/blockchain/contract-transactions?limit=${limit}&offset=${offset}`);
+}
+
+/**
+ * Sync transactions from blockchain
+ */
+export async function syncBlockchainTransactions() {
+  return apiFetch('/api/blockchain/sync', {
+    method: 'POST',
+  });
+}

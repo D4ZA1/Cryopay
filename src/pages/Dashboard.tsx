@@ -16,7 +16,6 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import {
-  ArrowUp,
   ArrowUpRight,
   ArrowDownLeft,
   Copy,
@@ -32,6 +31,7 @@ import {
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
+import { useEthereum } from "@/context/EthereumContext";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { getBlocks, getWallet } from "../lib/api";
 import { TransactionKind } from "../constants";
@@ -121,6 +121,7 @@ function SparklineBars({
 const Dashboard = () => {
   const isNonCustodial = true;
   const { user, balance, setBalance } = useAuth();
+  const { address: ethAddress, isConnected: isEthConnected, balance: ethBalance } = useEthereum();
   const [recentTx, setRecentTx] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [walletAddress, setWalletAddress] = useState<string>("");
@@ -346,26 +347,53 @@ const Dashboard = () => {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="relative space-y-3">
-                  <div className="flex items-baseline gap-3">
-                    <span className="text-4xl md:text-5xl font-bold text-white tabular-nums">
-                      <CountUp
-                        to={balance}
-                        duration={2}
-                        prefix="$"
-                        decimals={2}
-                        className="text-4xl md:text-5xl font-bold text-white"
-                      />
-                    </span>
-                    <span className="text-sm text-slate-400 font-medium">
-                      USD
-                    </span>
-                  </div>
+                  {/* Show ETH balance for MetaMask users */}
+                  {isEthConnected && ethBalance ? (
+                    <>
+                      <div className="flex items-baseline gap-3">
+                        <span className="text-4xl md:text-5xl font-bold text-white tabular-nums">
+                          {parseFloat(ethBalance).toFixed(4)}
+                        </span>
+                        <span className="text-sm text-slate-400 font-medium">ETH</span>
+                      </div>
+                      <p className="text-sm text-slate-500">
+                        ≈ ${(parseFloat(ethBalance || '0') * 3000).toFixed(2)} USD
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex items-baseline gap-3">
+                        <span className="text-4xl md:text-5xl font-bold text-white tabular-nums">
+                          <CountUp
+                            to={balance}
+                            duration={2}
+                            prefix="$"
+                            decimals={2}
+                            className="text-4xl md:text-5xl font-bold text-white"
+                          />
+                        </span>
+                        <span className="text-sm text-slate-400 font-medium">
+                          USD
+                        </span>
+                      </div>
 
-                  <p className="text-sm text-slate-500">
-                    ≈ {(balance / 3000).toFixed(4)} ETH
-                  </p>
+                      <p className="text-sm text-slate-500">
+                        ≈ {(balance / 3000).toFixed(4)} ETH
+                      </p>
+                    </>
+                  )}
 
-                  {isNonCustodial && walletAddress && (
+                  {isEthConnected && ethAddress ? (
+                    <div className="flex items-center gap-2 pt-1">
+                      <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-full">
+                        <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                        <span className="text-xs text-emerald-400 font-medium">MetaMask</span>
+                        <span className="text-xs text-slate-400 font-mono">
+                          {ethAddress.slice(0, 6)}...{ethAddress.slice(-4)}
+                        </span>
+                      </div>
+                    </div>
+                  ) : isNonCustodial && walletAddress && (
                     <div className="flex items-center gap-2 pt-1">
                       <div className="flex items-center gap-2 px-3 py-1.5 bg-white/[0.04] border border-white/[0.06] rounded-full">
                         <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
@@ -374,6 +402,7 @@ const Dashboard = () => {
                           {walletAddress.slice(-6)}
                         </span>
                         <button
+                          type="button"
                           className="ml-1 text-slate-500 hover:text-white transition-colors"
                           onClick={copyAddress}
                         >

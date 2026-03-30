@@ -1,3 +1,4 @@
+import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -63,6 +64,28 @@ vi.mock('../lib/symmetricSession', () => ({
   getSymKey: vi.fn().mockReturnValue(null),
   setSymKey: vi.fn(),
   clearSymKey: vi.fn(),
+}));
+
+// Mock EthereumContext
+vi.mock('../context/EthereumContext', () => ({
+  useEthereum: () => ({
+    address: undefined,
+    isConnected: false,
+    isConnecting: false,
+    chainId: undefined,
+    balance: undefined,
+    balanceWei: undefined,
+    refreshBalance: vi.fn(),
+    connect: vi.fn(),
+    disconnect: vi.fn(),
+    signMessage: vi.fn(),
+    isMetaMaskInstalled: false,
+    error: null,
+    clearError: vi.fn(),
+    isRegistered: false,
+    registerWithBackend: vi.fn(),
+  }),
+  EthereumProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 
 // Import mocked modules
@@ -357,7 +380,7 @@ describe('Account Workflow E2E', () => {
 
       // After login should redirect to dashboard
       await waitFor(() => {
-        expect(screen.getByText(/current balance/i)).toBeInTheDocument();
+        expect(screen.getByText(/total balance/i)).toBeInTheDocument();
       });
     });
 
@@ -393,13 +416,13 @@ describe('Account Workflow E2E', () => {
 
       renderApp('/login');
 
-      await user.type(screen.getByLabelText(/email/i), 'test@example.com');
-      await user.type(screen.getByLabelText(/password/i), 'password123');
-      await user.click(screen.getByRole('button', { name: /log in/i }));
+       await user.type(screen.getByLabelText(/email/i), 'test@example.com');
+       await user.type(screen.getByLabelText(/password/i), 'password123');
+       await user.click(screen.getByRole('button', { name: /log in/i }));
 
-      await waitFor(() => {
-        expect(screen.getByText(/current balance/i)).toBeInTheDocument();
-      });
+       await waitFor(() => {
+         expect(screen.getByText(/total balance/i)).toBeInTheDocument();
+       });
     });
 
     it('should handle MFA flow when enabled', async () => {
@@ -597,18 +620,18 @@ describe('Account Workflow E2E', () => {
         },
       ];
 
-      mockGetBlocks.mockResolvedValue({
-        ok: true,
-        data: { blocks: mockTransactions },
-      });
+       mockGetBlocks.mockResolvedValue({
+         ok: true,
+         data: { blocks: mockTransactions },
+       });
 
-      renderApp('/dashboard');
+       renderApp('/dashboard');
 
-      // Balance should reflect: -100 (buy) + 150 (sell) = $50
-      await waitFor(() => {
-        // Dashboard shows the calculated balance
-        expect(screen.getByText(/current balance/i)).toBeInTheDocument();
-      });
+       // Balance should reflect: -100 (buy) + 150 (sell) = $50
+       await waitFor(() => {
+         // Dashboard shows the calculated balance
+         expect(screen.getByText(/total balance/i)).toBeInTheDocument();
+       });
     });
   });
 
@@ -729,24 +752,22 @@ describe('Account Workflow E2E', () => {
         expect(screen.getByText('Original Name')).toBeInTheDocument();
       });
 
-      // Find the edit button by the Edit icon (the button with just the edit icon)
-      const buttons = screen.getAllByRole('button');
-      
-      // Find buttons that are outline variant and have svg inside
-      const outlineButtons = buttons.filter(btn => 
-        btn.classList.contains('border-input') && 
-        btn.querySelector('svg')
-      );
-      
-      // The first outline button with an icon should be Edit
-      if (outlineButtons.length > 0) {
-        await user.click(outlineButtons[0]);
-      }
+       // Find the edit button by the Edit icon (the button with just the edit icon)
+       const buttons = screen.getAllByRole('button');
+       
+       // Find the edit button - it should have the square-pen icon
+       const editButton = buttons.find(btn => 
+         btn.querySelector('svg.lucide-square-pen')
+       );
+       
+       if (editButton) {
+         await user.click(editButton);
+       }
 
-      // Edit contact modal should open
-      await waitFor(() => {
-        expect(screen.getByText(/edit contact/i)).toBeInTheDocument();
-      });
+       // Edit contact modal should open
+       await waitFor(() => {
+         expect(screen.getByText(/edit contact/i)).toBeInTheDocument();
+       });
 
       // Update the name using the input with id
       const nameInput = screen.getByLabelText(/name/i);
@@ -932,11 +953,11 @@ describe('Account Workflow E2E', () => {
         },
       });
 
-      renderApp('/dashboard');
+       renderApp('/dashboard');
 
-      await waitFor(() => {
-        expect(screen.getByText(/current balance/i)).toBeInTheDocument();
-      });
+       await waitFor(() => {
+         expect(screen.getByText(/total balance/i)).toBeInTheDocument();
+       });
     });
 
     it('should display wallet address on dashboard', async () => {
@@ -945,11 +966,11 @@ describe('Account Workflow E2E', () => {
         data: { wallet: { public_key: '0xMyWalletAddress123456789' } },
       });
 
-      renderApp('/dashboard');
+       renderApp('/dashboard');
 
-      await waitFor(() => {
-        expect(screen.getByText(/connected:/i)).toBeInTheDocument();
-      });
+       await waitFor(() => {
+         expect(screen.getByText(/0xMyWal/)).toBeInTheDocument();
+       });
     });
 
     it('should show recent transactions on dashboard', async () => {
@@ -985,12 +1006,12 @@ describe('Account Workflow E2E', () => {
     it('should navigate to transactions from dashboard', async () => {
       const user = setupUser();
 
-      renderApp('/dashboard');
+       renderApp('/dashboard');
 
-      // Wait for the Current Balance to load (indicates dashboard is ready)
-      await waitFor(() => {
-        expect(screen.getByText(/current balance/i)).toBeInTheDocument();
-      });
+       // Wait for the Current Balance to load (indicates dashboard is ready)
+       await waitFor(() => {
+         expect(screen.getByText(/total balance/i)).toBeInTheDocument();
+       });
 
       // Click View All link - it's a Link component
       const viewAllLink = screen.getByRole('link', { name: /view all/i });
@@ -1083,12 +1104,12 @@ describe('Account Workflow E2E', () => {
         },
       });
 
-      renderApp('/dashboard');
+       renderApp('/dashboard');
 
-      // User session should be restored
-      await waitFor(() => {
-        expect(screen.getByText(/current balance/i)).toBeInTheDocument();
-      });
+       // User session should be restored
+       await waitFor(() => {
+         expect(screen.getByText(/total balance/i)).toBeInTheDocument();
+       });
     });
 
     it('should clear session on logout', async () => {
