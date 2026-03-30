@@ -19,7 +19,7 @@ const MIN_FIAT_AMOUNT = 1; // $1 minimum
 const MIN_CRYPTO_AMOUNT = 0.00000001; // Smallest crypto unit
 
 // Exchange address (Hardhat Account #1) - in production, this would be a real exchange/contract address
-const EXCHANGE_ADDRESS = '0x70997970C51812dc3A010C7d01b50e0d17dc79C8';
+const EXCHANGE_ADDRESS = import.meta.env.VITE_EXCHANGE_ADDRESS || '0x70997970C51812dc3A010C7d01b50e0d17dc79C8';
 
 // Transaction status states
 type TransactionStatus = 'idle' | 'connecting' | 'sending' | 'confirming' | 'saving' | 'success' | 'error';
