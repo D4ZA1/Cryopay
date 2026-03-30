@@ -9,6 +9,7 @@ import { encryptJSONWithPassword, sha256Hex } from '../lib/crypto';
 import { getSymKey, setSymKey } from '../lib/symmetricSession';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useEthereum } from '../context/EthereumContext';
 import UnlockTransactionModal from '../components/UnlockTransactionModal';
 import { getErrorMessage } from '@/lib/utils';
 // Minimum transaction amounts
@@ -51,6 +52,7 @@ const CRYPTOCURRENCIES = [
 
 const BuySell = () => {
   const { user, balance } = useAuth();
+  const { balance: ethBalance } = useEthereum();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('buy'); // 'buy' or 'sell'
   const [selectedCrypto, setSelectedCrypto] = useState(CRYPTOCURRENCIES[0]);
@@ -239,8 +241,10 @@ const BuySell = () => {
     }
 
     // For sell transactions, check if user has sufficient balance
-    if (activeTab === 'sell' && balance < fiatAmount) {
-      return alert(`Insufficient balance. You have $${balance.toFixed(2)} available.`);
+    // Use ETH balance if available (real blockchain), otherwise fall back to database balance
+    const currentBalance = ethBalance > 0 ? ethBalance : balance;
+    if (activeTab === 'sell' && currentBalance < fiatAmount) {
+      return alert(`Insufficient balance. You have $${currentBalance.toFixed(2)} available.`);
     }
 
     // Try to fetch current user's profile thumbprint to include as from_thumbprint

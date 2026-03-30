@@ -2,6 +2,8 @@ import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { AuthProvider } from '../../context/AuthContext';
+import { EthereumProvider } from '../../context/EthereumContext';
 import BuySell from '../BuySell';
 import * as api from '../../lib/api';
 
@@ -56,7 +58,11 @@ global.fetch = mockFetch;
 const renderWithProviders = (ui: React.ReactElement) => {
   return render(
     <MemoryRouter>
-      {ui}
+      <AuthProvider>
+        <EthereumProvider>
+          {ui}
+        </EthereumProvider>
+      </AuthProvider>
     </MemoryRouter>
   );
 };

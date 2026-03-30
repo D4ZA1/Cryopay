@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { AuthProvider } from '../../context/AuthContext';
+import { EthereumProvider } from '../../context/EthereumContext';
 import Contacts from '../Contacts';
 import * as api from '../../lib/api';
 
@@ -55,7 +56,11 @@ vi.mock('../../context/AuthContext', async () => {
 const renderWithProviders = (ui: React.ReactElement) => {
   return render(
     <MemoryRouter>
-      <AuthProvider>{ui}</AuthProvider>
+      <AuthProvider>
+        <EthereumProvider>
+          {ui}
+        </EthereumProvider>
+      </AuthProvider>
     </MemoryRouter>
   );
 };

@@ -1,10 +1,5 @@
 import { parseApiError } from "@/utils/errorUtils";
 
-interface ImportMetaEnv {
-  readonly VITE_WORKER_URL: string
-}
-
-
 const WORKER_URL = import.meta.env.VITE_WORKER_URL;
   
 interface ApiResponse<T = any> {
@@ -36,6 +31,16 @@ export async function apiFetch<T = any>(endpoint: string, options: RequestInit =
     }
 
     const data = await response.json();
+    
+    // Handle backend responses with 'success' field (like MetaMask endpoints)
+    if ('success' in data) {
+      if (data.success) {
+        return { ok: true, data: data.data as T };
+      } else {
+        return { ok: false, error: data.error || data.message || 'Request failed' };
+      }
+    }
+    
     return { ok: true, data: data as T };
   } catch (error) {
     return { ok: false, error: (error as Error).message };
@@ -213,7 +218,7 @@ export async function connectMetaMask(data: {
   firstName?: string;
   lastName?: string;
 }) {
-  return apiFetch('/api/auth/metamask-register', {
+  return apiFetch('/api/auth/metamask/connect', {
     method: 'POST',
     body: JSON.stringify(data),
   });

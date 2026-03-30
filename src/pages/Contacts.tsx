@@ -7,6 +7,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Search, Plus, Send, Edit, Trash2, User } from 'lucide-react';
 import { getContacts, createContact, deleteContact, getProfile, apiFetch, getBlocks, createBlock, updateContact } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
+import { useEthereum } from '../context/EthereumContext';
+import { useSendEth } from '../hooks/useSendTransaction';
 import { encryptJSONWithPassword } from '../lib/crypto';
 import { setSymKey } from '../lib/symmetricSession';
 import { JWK } from '../types/schemas';
@@ -74,9 +76,12 @@ const Contacts = () => {
   const [sendAmount, setSendAmount] = useState('');
   const [sendCrypto, setSendCrypto] = useState('ETH');
   const [sendPassword, setSendPassword] = useState('');
+  const [useBlockchain, setUseBlockchain] = useState(true); // Toggle for real blockchain transactions
   // TODO: Connect to real price feed - currently using Binance API fallback
   const [ethPrice, setEthPrice] = useState<number>(3000);
-  const { user } = useAuth();
+  const { user, balance } = useAuth();
+  const { isConnected, balance: ethBalance } = useEthereum();
+  const { sendEth, hash: txHash, isSending, isConfirming } = useSendEth();
 
   // Fetch real ETH price on mount
   useEffect(() => {
@@ -335,9 +340,36 @@ const Contacts = () => {
         <DialogContent className="sm:max-w-md bg-slate-900/95 backdrop-blur-xl border-white/[0.06]">
           <DialogHeader>
             <DialogTitle className="text-white">Send to Contact</DialogTitle>
-            <DialogDescription className="text-slate-400">Enter receiver public key (pre-filled) and your wallet key to encrypt and persist the transaction.</DialogDescription>
+            <DialogDescription className="text-slate-400">
+              {useBlockchain 
+                ? 'Send real ETH via MetaMask (on-chain transaction)' 
+                : 'Save transaction record locally (database only)'}
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
+            {/* Transaction Mode Toggle */}
+            <div className="flex items-center justify-between p-3 bg-slate-800/30 rounded-lg border border-white/[0.06]">
+              <div className="flex flex-col">
+                <span className="text-sm font-medium text-white">Blockchain Transaction</span>
+                <span className="text-xs text-slate-400">
+                  {useBlockchain ? 'Real ETH transfer (shows in MetaMask)' : 'Demo mode (database only)'}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setUseBlockchain(!useBlockchain)}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                  useBlockchain ? 'bg-emerald-500' : 'bg-slate-600'
+                }`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    useBlockchain ? 'translate-x-6' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+            </div>
+            
             <div className="space-y-2">
               <Label className="text-slate-400">Receiver Public Key / Address</Label>
               <Input value={sendTarget?.address || ''} onChange={(e) => setSendTarget({ ...(sendTarget || {}), address: e.target.value })} className="bg-slate-800/50 border-white/[0.06] text-white placeholder:text-slate-500" />
@@ -349,115 +381,212 @@ const Contacts = () => {
               </div>
               <div className="space-y-2">
                 <Label className="text-slate-400">Crypto</Label>
-                <Input value={sendCrypto} onChange={(e) => setSendCrypto(e.target.value)} className="bg-slate-800/50 border-white/[0.06] text-white placeholder:text-slate-500" />
+                <Input value={sendCrypto} onChange={(e) => setSendCrypto(e.target.value)} className="bg-slate-800/50 border-white/[0.06] text-white placeholder:text-slate-500" disabled={useBlockchain} />
+                {useBlockchain && <p className="text-xs text-slate-500">ETH only for blockchain mode</p>}
               </div>
             </div>
             <div className="space-y-2">
-              <Label className="text-slate-400">Your Wallet Key (session password)</Label>
-              <Input type="password" value={sendPassword} onChange={(e) => setSendPassword(e.target.value)} placeholder="Enter wallet-derived key or session password" className="bg-slate-800/50 border-white/[0.06] text-white placeholder:text-slate-500" />
+              <Label className="text-slate-400">
+                Your Wallet Key (session password){!useBlockchain && ' - Required'}
+              </Label>
+              <Input 
+                type="password" 
+                value={sendPassword} 
+                onChange={(e) => setSendPassword(e.target.value)} 
+                placeholder={useBlockchain ? 'Optional - for encrypted record' : 'Required - to encrypt transaction'} 
+                className="bg-slate-800/50 border-white/[0.06] text-white placeholder:text-slate-500" 
+              />
+              {useBlockchain && (
+                <p className="text-xs text-slate-500">
+                  Blockchain transactions use MetaMask for signing. Password is optional for record-keeping.
+                </p>
+              )}
             </div>
             <div className="flex gap-2 pt-4">
-              <Button onClick={async () => {
-                if (!user) return alert('You must be signed in');
-                if (!sendTarget?.address) return alert('Enter receiver address');
-                if (!sendAmount || isNaN(Number(sendAmount))) return alert('Enter amount');
-                if (!sendPassword) return alert('Enter your wallet key');
+              <Button 
+                onClick={async () => {
+                  if (!user) return alert('You must be signed in');
+                  if (!sendTarget?.address) return alert('Enter receiver address');
+                  if (!sendAmount || isNaN(Number(sendAmount))) return alert('Enter amount');
+                  
+                   // Check if MetaMask is connected for blockchain transactions
+                   if (useBlockchain && !isConnected) {
+                     return alert('Please connect MetaMask wallet to send real blockchain transactions');
+                   }
 
-                // build payload
-                // Attempt to include sender/recipient thumbprints when available so we can determine Sent/Received later.
-                let senderThumb: string | null = null;
-                let recipientThumb: string | null = null;
-                try {
-                  const profRes = await getProfile();
-                  if (profRes.ok && profRes.data?.profile) {
-                    senderThumb = profRes.data.profile.public_key?.thumbprint || null;
-                  }
-                } catch (e) { /* ignore */ }
+                   // Check balance - use blockchain balance if available, otherwise database balance
+                   const ethBalanceNum = ethBalance ? parseFloat(ethBalance) : 0;
+                   const currentBalance = ethBalanceNum > 0 ? ethBalanceNum : balance;
+                   if (currentBalance < Number(sendAmount)) {
+                     return alert(`Insufficient balance. You have $${currentBalance.toFixed(2)} available.`);
+                   }
 
-                let recipientProfileId: string | null = null;
-                try {
-                  // If the contact references a profile id, fetch its thumbprint
-                  if ((sendTarget as any)?.contact_user_id) {
-                    const profRes = await apiFetch(`/api/profile/search?id=${encodeURIComponent((sendTarget as any).contact_user_id)}`);
-                    if (profRes.ok && profRes.data?.profile) {
-                      recipientThumb = profRes.data.profile.public_key?.thumbprint || null;
-                      recipientProfileId = profRes.data.profile.id || null;
-                    }
-                  } else if ((sendTarget as any)?.email) {
-                    const profRes = await apiFetch(`/api/profile/search?email=${encodeURIComponent((sendTarget as any).email)}`);
-                    if (profRes.ok && profRes.data?.profile) {
-                      recipientThumb = profRes.data.profile.public_key?.thumbprint || null;
-                      recipientProfileId = profRes.data.profile.id || null;
-                    }
-                  } else if ((sendTarget as any)?.public_key) {
-                    recipientThumb = (sendTarget as any)?.public_key?.thumbprint || null;
-                  }
-                } catch (e) { /* ignore */ }
-
-                const payload = {
-                  kind: 'tx',
-                  to: sendTarget.address,
-                  to_user_id: recipientProfileId,
-                  from: user.id,
-                  from_thumbprint: senderThumb,
-                  to_thumbprint: recipientThumb,
-                  crypto: sendCrypto,
-                  amountFiat: parseFloat(sendAmount),
-                  amountCrypto: parseFloat((parseFloat(sendAmount) / ethPrice).toFixed(8)),
-                  timestamp: new Date().toISOString(),
-                  user_id: user.id,
-                };
-
-                try {
-                  // compute global previous_hash (across all users) so encryption/salt chaining is global
-                  let previous_hash: string | null = null;
+                   // build payload
+                  // Attempt to include sender/recipient thumbprints when available so we can determine Sent/Received later.
+                  let senderThumb: string | null = null;
+                  let recipientThumb: string | null = null;
                   try {
-                    const blocksRes = await getBlocks();
-                    if (blocksRes.ok && blocksRes.data?.blocks?.length) {
-                      previous_hash = blocksRes.data.blocks[0].hash;
+                    const profRes = await getProfile();
+                    if (profRes.ok && profRes.data?.profile) {
+                      senderThumb = profRes.data.profile.public_key?.thumbprint || null;
                     }
                   } catch (e) { /* ignore */ }
 
-                  // Use the previous_hash as salt when encrypting (if present)
-                  const encrypted = await encryptJSONWithPassword(payload, sendPassword, previous_hash || undefined);
-                  // Note: Block hash is computed server-side during createBlock
+                  let recipientProfileId: string | null = null;
+                  try {
+                    // If the contact references a profile id, fetch its thumbprint
+                    if ((sendTarget as any)?.contact_user_id) {
+                      const profRes = await apiFetch(`/api/profile/search?id=${encodeURIComponent((sendTarget as any).contact_user_id)}`);
+                      if (profRes.ok && profRes.data?.profile) {
+                        recipientThumb = profRes.data.profile.public_key?.thumbprint || null;
+                        recipientProfileId = profRes.data.profile.id || null;
+                      }
+                    } else if ((sendTarget as any)?.email) {
+                      const profRes = await apiFetch(`/api/profile/search?email=${encodeURIComponent((sendTarget as any).email)}`);
+                      if (profRes.ok && profRes.data?.profile) {
+                        recipientThumb = profRes.data.profile.public_key?.thumbprint || null;
+                        recipientProfileId = profRes.data.profile.id || null;
+                      }
+                    } else if ((sendTarget as any)?.public_key) {
+                      recipientThumb = (sendTarget as any)?.public_key?.thumbprint || null;
+                    }
+                  } catch (e) { /* ignore */ }
 
-                  interface QuickSendPublicSummary {
-                    kind: 'tx';
-                    to: string;
-                    amountFiat: number;
-                    amountCrypto: number;
-                    to_user_id?: string;
-                    to_thumbprint?: string;
-                    from_thumbprint?: string;
-                  }
-
-                  const public_summary: QuickSendPublicSummary = { 
-                    kind: 'tx', 
-                    to: sendTarget.address, 
-                    amountFiat: payload.amountFiat, 
-                    amountCrypto: payload.amountCrypto 
+                  const amountCrypto = parseFloat((parseFloat(sendAmount) / ethPrice).toFixed(8));
+                  
+                  const payload = {
+                    kind: 'tx',
+                    to: sendTarget.address,
+                    to_user_id: recipientProfileId,
+                    from: user.id,
+                    from_thumbprint: senderThumb,
+                    to_thumbprint: recipientThumb,
+                    crypto: sendCrypto,
+                    amountFiat: parseFloat(sendAmount),
+                    amountCrypto,
+                    timestamp: new Date().toISOString(),
+                    user_id: user.id,
+                    tx_hash: null as string | null,
                   };
-                  if (recipientProfileId) public_summary.to_user_id = recipientProfileId;
-                  if (recipientThumb) public_summary.to_thumbprint = recipientThumb;
-                  if (senderThumb) public_summary.from_thumbprint = senderThumb;
 
-                   const blockData = JSON.stringify({ public_summary, encrypted_blob: encrypted, user_id: user.id });
-                    const blockRes = await createBlock(blockData, previous_hash || undefined);
-                    if (!blockRes.ok) {
-                      console.error('send insert error', blockRes.error);
-                      return alert('Failed to send: ' + getErrorMessage(blockRes.error));
+                  try {
+                    // STEP 1: Send real blockchain transaction if enabled
+                    if (useBlockchain && sendCrypto === 'ETH') {
+                      try {
+                        console.log(`Sending ${amountCrypto} ETH to ${sendTarget.address}...`);
+                        await sendEth(sendTarget.address, amountCrypto.toString());
+                        
+                        // Wait for transaction hash
+                        if (txHash) {
+                          payload.tx_hash = txHash;
+                          console.log('Transaction hash:', txHash);
+                        }
+                      } catch (error: any) {
+                        console.error('Blockchain transaction failed:', error);
+                        return alert('Blockchain transaction failed: ' + (error?.message || 'Unknown error'));
+                      }
                     }
 
-                  // store session key for convenience
-                  setSymKey(sendPassword);
-                  setIsSendModalOpen(false);
-                  alert('Transaction saved locally (encrypted)');
-                } catch (e: any) {
-                  console.error('send failed', e);
-                  alert('Send failed: ' + (e?.message || String(e)));
-                }
-              }} className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white border-0">Send</Button>
+                    // STEP 2: Record transaction in database
+                    if (!sendPassword && useBlockchain) {
+                      // For blockchain transactions, password is optional
+                      // Store unencrypted summary
+                      interface QuickSendPublicSummary {
+                        kind: 'tx';
+                        to: string;
+                        amountFiat: number;
+                        amountCrypto: number;
+                        to_user_id?: string;
+                        to_thumbprint?: string;
+                        from_thumbprint?: string;
+                        tx_hash?: string | null;
+                      }
+
+                      const public_summary: QuickSendPublicSummary = { 
+                        kind: 'tx', 
+                        to: sendTarget.address, 
+                        amountFiat: payload.amountFiat, 
+                        amountCrypto: payload.amountCrypto,
+                        tx_hash: payload.tx_hash
+                      };
+                      if (recipientProfileId) public_summary.to_user_id = recipientProfileId;
+                      if (recipientThumb) public_summary.to_thumbprint = recipientThumb;
+                      if (senderThumb) public_summary.from_thumbprint = senderThumb;
+
+                      const blockData = JSON.stringify({ public_summary, user_id: user.id });
+                      const blockRes = await createBlock(blockData, undefined);
+                      if (!blockRes.ok) {
+                        console.error('Database record failed', blockRes.error);
+                        // Don't fail here - blockchain tx already succeeded
+                      }
+
+                      setIsSendModalOpen(false);
+                      if (payload.tx_hash) {
+                        alert(`Transaction sent!\nHash: ${payload.tx_hash}\n\nCheck MetaMask for status.`);
+                      } else {
+                        alert('Transaction sent! Check MetaMask for status.');
+                      }
+                    } else if (sendPassword) {
+                      // Original encrypted flow for non-blockchain or when password provided
+                      let previous_hash: string | null = null;
+                      try {
+                        const blocksRes = await getBlocks();
+                        if (blocksRes.ok && blocksRes.data?.blocks?.length) {
+                          previous_hash = blocksRes.data.blocks[0].hash;
+                        }
+                      } catch (e) { /* ignore */ }
+
+                      const encrypted = await encryptJSONWithPassword(payload, sendPassword, previous_hash || undefined);
+
+                      interface QuickSendPublicSummary {
+                        kind: 'tx';
+                        to: string;
+                        amountFiat: number;
+                        amountCrypto: number;
+                        to_user_id?: string;
+                        to_thumbprint?: string;
+                        from_thumbprint?: string;
+                        tx_hash?: string | null;
+                      }
+
+                      const public_summary: QuickSendPublicSummary = { 
+                        kind: 'tx', 
+                        to: sendTarget.address, 
+                        amountFiat: payload.amountFiat, 
+                        amountCrypto: payload.amountCrypto,
+                        tx_hash: payload.tx_hash
+                      };
+                      if (recipientProfileId) public_summary.to_user_id = recipientProfileId;
+                      if (recipientThumb) public_summary.to_thumbprint = recipientThumb;
+                      if (senderThumb) public_summary.from_thumbprint = senderThumb;
+
+                      const blockData = JSON.stringify({ public_summary, encrypted_blob: encrypted, user_id: user.id });
+                      const blockRes = await createBlock(blockData, previous_hash || undefined);
+                      if (!blockRes.ok) {
+                        console.error('send insert error', blockRes.error);
+                        return alert('Failed to record transaction: ' + getErrorMessage(blockRes.error));
+                      }
+
+                      setSymKey(sendPassword);
+                      setIsSendModalOpen(false);
+                      if (payload.tx_hash) {
+                        alert(`Transaction saved!\nBlockchain Hash: ${payload.tx_hash}`);
+                      } else {
+                        alert('Transaction saved locally (encrypted)');
+                      }
+                    } else {
+                      return alert('Please enter your wallet key or enable blockchain mode');
+                    }
+                  } catch (e: any) {
+                    console.error('send failed', e);
+                    alert('Send failed: ' + (e?.message || String(e)));
+                  }
+                }} 
+                className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white border-0"
+                disabled={isSending || isConfirming}
+              >
+                {isSending ? 'Awaiting Approval...' : isConfirming ? 'Confirming...' : 'Send'}
+              </Button>
               <Button variant="outline" onClick={() => setIsSendModalOpen(false)} className="bg-white/[0.06] border-white/[0.06] text-slate-400 hover:bg-white/[0.08]">Cancel</Button>
             </div>
           </div>
