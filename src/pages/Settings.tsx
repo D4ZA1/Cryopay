@@ -9,9 +9,13 @@ import { useAuth } from '../context/AuthContext';
 import { getProfile, updateProfile, apiFetch, getWallet } from '../lib/api';
 import { useNavigate } from 'react-router-dom';
 import { getErrorMessage } from '@/lib/utils';
+import { toast, Slide } from 'react-toastify';
+import DeleteButton from '../components/DeleteButton';
+import ConfirmationModal from '../components/ConfirmationModal';
+import ConfirmationModalWithInput from '../components/ConfirmationModalWithInput';
 
 const Settings = () => {
-  const { user, refreshUser } = useAuth();
+  const { user, refreshUser, logout } = useAuth();
   const navigate = useNavigate();
 
   const [profile, setProfile] = useState({
@@ -39,6 +43,8 @@ const Settings = () => {
   const [lastUpdateResponse, setLastUpdateResponse] = useState<any>(null);
   const [lastGetUserResponse, setLastGetUserResponse] = useState<any>(null);
   const [showDebug, setShowDebug] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -113,10 +119,20 @@ const Settings = () => {
         console.warn('[Settings] refreshUser failed', e);
       }
 
-      setMessage('Profile updated successfully');
+      toast.success('Profile updated successfully', {
+        position: 'top-center',
+        autoClose: 5000,
+        theme: 'dark',
+        transition: Slide,
+      });
     } catch (e: any) {
       console.error('[Settings] saveProfile error', e);
-      setMessage(e?.message || String(e));
+      toast.error(e?.message || String(e), {
+        position: 'top-center',
+        autoClose: 5000,
+        theme: 'dark',
+        transition: Slide,
+      });
     } finally {
       setIsSavingProfile(false);
     }
@@ -132,10 +148,20 @@ const Settings = () => {
        if (!updateRes.ok) {
          throw new Error(getErrorMessage(updateRes.error || 'Failed to save notifications'));
        }
-      setMessage('Notification preferences saved');
+      toast.success('Notification preferences saved', {
+        position: 'top-center',
+        autoClose: 5000,
+        theme: 'dark',
+        transition: Slide,
+      });
     } catch (e: any) {
       console.error('[Settings] saveNotifications error', e);
-      setMessage(e?.message || String(e));
+      toast.error(e?.message || String(e), {
+        position: 'top-center',
+        autoClose: 5000,
+        theme: 'dark',
+        transition: Slide,
+      });
     } finally {
       setIsSavingNotifications(false);
     }
@@ -148,20 +174,15 @@ const Settings = () => {
       return;
     }
     // disabling 2FA is intentionally not allowed from the client in this app
-    setMessage('Disabling two-factor authentication is not supported via this UI.');
+    toast.info('Disabling two-factor authentication is not supported via this UI.', {
+      position: 'top-center',
+      autoClose: 5000,
+      theme: 'dark',
+      transition: Slide,
+    });
   };
 
   const handleExportKeys = async () => {
-    // Show warning confirmation
-    const confirmed = window.confirm(
-      '⚠️ WARNING: You are about to export your private keys.\n\n' +
-      'Keep this file secure and never share it with anyone.\n' +
-      'Anyone with access to these keys can access your wallet.\n\n' +
-      'Do you want to continue?'
-    );
-
-    if (!confirmed) return;
-
     setIsExportingKeys(true);
     setMessage(null);
     try {
@@ -198,12 +219,68 @@ const Settings = () => {
       link.click();
       URL.revokeObjectURL(url);
 
-      setMessage('Wallet keys exported successfully. Keep this file secure!');
+      toast.success('Wallet keys exported successfully. Keep this file secure!', {
+        position: 'top-center',
+        autoClose: 5000,
+        theme: 'dark',
+        transition: Slide,
+      });
     } catch (e: any) {
       console.error('[Settings] export keys error', e);
-      setMessage(`Export failed: ${e?.message || String(e)}`);
+      toast.error(`Export failed: ${e?.message || String(e)}`, {
+        position: 'top-center',
+        autoClose: 5000,
+        theme: 'dark',
+        transition: Slide,
+      });
     } finally {
       setIsExportingKeys(false);
+      setShowExportModal(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    try {
+      // Show loading toast
+      const toastId = toast.loading('Deleting account...', {
+        position: 'top-center',
+        theme: 'dark',
+      });
+
+      // Call the API to delete the account
+      const deleteRes = await apiFetch('/api/profile', {
+        method: 'DELETE',
+      });
+
+      if (!deleteRes.ok) {
+        throw new Error(getErrorMessage(deleteRes.error || 'Failed to delete account'));
+      }
+
+      // Update toast to success
+      toast.update(toastId, {
+        render: 'Account deleted successfully. Logging you out...',
+        type: 'success',
+        isLoading: false,
+        autoClose: 2000,
+        theme: 'dark',
+        transition: Slide,
+      });
+
+      // Wait a moment before logging out
+      setTimeout(() => {
+        logout();
+      }, 2000);
+
+    } catch (e: any) {
+      console.error('[Settings] delete account error', e);
+      toast.error(`Failed to delete account: ${e?.message || String(e)}`, {
+        position: 'top-center',
+        autoClose: 5000,
+        theme: 'dark',
+        transition: Slide,
+      });
+    } finally {
+      setShowDeleteModal(false);
     }
   };
 
@@ -347,18 +424,36 @@ const Settings = () => {
               <Input type="password" placeholder="New password" id="newPassword" className="bg-slate-800/50 border-white/[0.06] text-white placeholder:text-slate-500" autoComplete="new-password" />
               <Button variant="outline" onClick={async () => {
                 const el = document.getElementById('newPassword') as HTMLInputElement | null;
-                if (!el || !el.value) return setMessage('Please enter a new password');
+                if (!el || !el.value) {
+                  toast.warning('Please enter a new password', {
+                    position: 'top-center',
+                    autoClose: 5000,
+                    theme: 'dark',
+                    transition: Slide,
+                  });
+                  return;
+                }
                 try {
                   const pwRes = await apiFetch('/api/auth/change-password', {
                     method: 'POST',
                     body: JSON.stringify({ password: el.value }),
                   });
                   if (!pwRes.ok) throw new Error(getErrorMessage(pwRes.error || 'Failed to update password'));
-                  setMessage('Password updated successfully');
+                  toast.success('Password updated successfully', {
+                    position: 'top-center',
+                    autoClose: 5000,
+                    theme: 'dark',
+                    transition: Slide,
+                  });
                   el.value = '';
                 } catch (e: any) {
                   console.error('[Settings] update password error', e);
-                  setMessage(e?.message || String(e));
+                  toast.error(e?.message || String(e), {
+                    position: 'top-center',
+                    autoClose: 5000,
+                    theme: 'dark',
+                    transition: Slide,
+                  });
                 }
               }} className="bg-white/[0.06] border-white/[0.06] text-white hover:bg-white/[0.1]">Update Password</Button>
             </div>
@@ -498,7 +593,7 @@ const Settings = () => {
             </div>
             <Button 
               variant="outline" 
-              onClick={handleExportKeys}
+              onClick={() => setShowExportModal(true)}
               disabled={isExportingKeys}
               className="bg-white/[0.06] border-white/[0.06] text-white hover:bg-white/[0.1]"
             >
@@ -511,12 +606,37 @@ const Settings = () => {
               <h4 className="font-medium text-red-400">Delete Account</h4>
               <p className="text-sm text-slate-500">Permanently delete your account and data</p>
             </div>
-            <Button variant="destructive" className="bg-red-500/20 border border-red-500/30 text-red-400 hover:bg-red-500/30">Delete</Button>
+            <DeleteButton onClick={() => setShowDeleteModal(true)} />
           </div>
         </CardContent>
       </Card>
 
       {/* Using Supabase auth user metadata as the single source of truth for profile details */}
+
+      {/* Export Private Keys Modal */}
+      <ConfirmationModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        onConfirm={handleExportKeys}
+        title="Export Private Keys"
+        message="⚠️ WARNING: Your private keys will be downloaded. Keep them safe and never share them with anyone!"
+        type="warning"
+        confirmText="Export Keys"
+        cancelText="Cancel"
+      />
+
+      {/* Delete Account Modal */}
+      <ConfirmationModalWithInput
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        onConfirm={handleDeleteAccount}
+        title="Delete Account"
+        message="This will permanently delete your account and all data. This action cannot be undone. Type DELETE to confirm."
+        requiredInput="DELETE"
+        placeholder="Type DELETE to confirm"
+        confirmText="Delete Account"
+        cancelText="Cancel"
+      />
     </div>
   );
 };

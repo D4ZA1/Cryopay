@@ -13,6 +13,7 @@ import { useEthereum } from '../context/EthereumContext';
 import { useSendEth } from '../hooks/useSendTransaction';
 import UnlockTransactionModal from '../components/UnlockTransactionModal';
 import { getErrorMessage } from '@/lib/utils';
+import { toast, Slide } from 'react-toastify';
 
 // Minimum transaction amounts
 const MIN_FIAT_AMOUNT = 1; // $1 minimum
@@ -246,7 +247,15 @@ const BuySell = () => {
   };
 
   const handleTransaction = async () => {
-    if (!user) return alert('You must be signed in to create a transaction');
+    if (!user) {
+      toast.warning('You must be signed in to create a transaction', {
+        position: 'top-center',
+        autoClose: 5000,
+        theme: 'dark',
+        transition: Slide
+      });
+      return;
+    }
 
     // Reset status
     setTxStatus('idle');
@@ -258,20 +267,44 @@ const BuySell = () => {
     const cryptoAmt = parseFloat(cryptoAmount);
 
     if (isNaN(fiatAmount) || fiatAmount <= 0) {
-      return alert('Please enter a valid fiat amount greater than 0');
+      toast.error('Please enter a valid fiat amount greater than 0', {
+        position: 'top-center',
+        autoClose: 5000,
+        theme: 'dark',
+        transition: Slide
+      });
+      return;
     }
 
     if (isNaN(cryptoAmt) || cryptoAmt <= 0) {
-      return alert('Please enter a valid crypto amount greater than 0');
+      toast.error('Please enter a valid crypto amount greater than 0', {
+        position: 'top-center',
+        autoClose: 5000,
+        theme: 'dark',
+        transition: Slide
+      });
+      return;
     }
 
     // Minimum amount validation
     if (fiatAmount < MIN_FIAT_AMOUNT) {
-      return alert(`Minimum transaction amount is $${MIN_FIAT_AMOUNT}`);
+      toast.warning(`Minimum transaction amount is $${MIN_FIAT_AMOUNT}`, {
+        position: 'top-center',
+        autoClose: 5000,
+        theme: 'dark',
+        transition: Slide
+      });
+      return;
     }
 
     if (cryptoAmt < MIN_CRYPTO_AMOUNT) {
-      return alert(`Minimum crypto amount is ${MIN_CRYPTO_AMOUNT}`);
+      toast.warning(`Minimum crypto amount is ${MIN_CRYPTO_AMOUNT}`, {
+        position: 'top-center',
+        autoClose: 5000,
+        theme: 'dark',
+        transition: Slide
+      });
+      return;
     }
 
     // For SELL transactions - require wallet connection and ETH balance
@@ -337,7 +370,13 @@ const BuySell = () => {
         // Use ETH balance if available (real blockchain), otherwise fall back to database balance
         const currentBalance = ethBalance ? parseFloat(ethBalance) : balance;
         if (currentBalance < fiatAmount) {
-          return alert(`Insufficient balance. You have $${currentBalance.toFixed(2)} available.`);
+          toast.error(`Insufficient balance. You have $${currentBalance.toFixed(2)} available.`, {
+            position: 'top-center',
+            autoClose: 5000,
+            theme: 'dark',
+            transition: Slide
+          });
+          return;
         }
         
         const payload = await buildPayload(fiatAmount, cryptoAmt, undefined, false);

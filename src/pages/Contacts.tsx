@@ -13,6 +13,7 @@ import { encryptJSONWithPassword } from '../lib/crypto';
 import { setSymKey } from '../lib/symmetricSession';
 import { JWK } from '../types/schemas';
 import { getErrorMessage } from '@/lib/utils';
+import { toast, Slide } from 'react-toastify';
 
 /**
  * Contact display type for UI rendering
@@ -127,20 +128,56 @@ const Contacts = () => {
 
   const handleAddContact = async () => {
     try {
-      if (!user) return alert('You must be signed in to add a contact');
-      if (!newContact.email) return alert('Enter the user email to verify');
+      if (!user) {
+        toast.error('You must be signed in to add a contact', {
+          position: 'top-center',
+          autoClose: 5000,
+          theme: 'dark',
+          transition: Slide,
+        });
+        return;
+      }
+      if (!newContact.email) {
+        toast.warning('Enter the user email to verify', {
+          position: 'top-center',
+          autoClose: 5000,
+          theme: 'dark',
+          transition: Slide,
+        });
+        return;
+      }
       
       // Validate email format
       if (!isValidEmail(newContact.email)) {
-        return alert('Please enter a valid email address');
+        toast.warning('Please enter a valid email address', {
+          position: 'top-center',
+          autoClose: 5000,
+          theme: 'dark',
+          transition: Slide,
+        });
+        return;
       }
       
-      if (!newContact.publicKey) return alert('Enter the receiver public key');
+      if (!newContact.publicKey) {
+        toast.warning('Enter the receiver public key', {
+          position: 'top-center',
+          autoClose: 5000,
+          theme: 'dark',
+          transition: Slide,
+        });
+        return;
+      }
 
       // Verify that a profile with this email exists by calling the profile search endpoint
       const searchRes = await apiFetch(`/api/profile/search?email=${encodeURIComponent(newContact.email)}`);
       if (!searchRes.ok || !searchRes.data?.profile) {
-        return alert('No user with that email found in the system');
+        toast.error('No user with that email found in the system', {
+          position: 'top-center',
+          autoClose: 5000,
+          theme: 'dark',
+          transition: Slide,
+        });
+        return;
       }
       const prof = searchRes.data.profile;
 
@@ -157,7 +194,15 @@ const Contacts = () => {
         // ignore
       }
 
-      if (!walletMatches) return alert('Provided public key does not match the stored public key for that user');
+      if (!walletMatches) {
+        toast.error('Provided public key does not match the stored public key for that user', {
+          position: 'top-center',
+          autoClose: 5000,
+          theme: 'dark',
+          transition: Slide,
+        });
+        return;
+      }
 
       const displayName = prof.first_name ? `${prof.first_name} ${prof.last_name || ''}`.trim() : newContact.name || prof.email;
 
@@ -188,7 +233,13 @@ const Contacts = () => {
 
         if (!response.ok) {
           console.error('contacts insert failed', response.error);
-          return alert('Failed to add contact: ' + getErrorMessage(response.error));
+          toast.error('Failed to add contact: ' + getErrorMessage(response.error), {
+            position: 'top-center',
+            autoClose: 5000,
+            theme: 'dark',
+            transition: Slide,
+          });
+          return;
         }
 
       setContacts([...(contacts || []), response.data?.contact]);
@@ -196,22 +247,38 @@ const Contacts = () => {
       setIsAddModalOpen(false);
     } catch (err) {
       console.error('add contact unexpected error', err);
-      alert('Failed to add contact');
+      toast.error('Failed to add contact', {
+        position: 'top-center',
+        autoClose: 5000,
+        theme: 'dark',
+        transition: Slide,
+      });
     }
   };
 
   const handleDeleteContact = async (id: number | string) => {
-    if (!confirm('Are you sure you want to delete this contact?')) return;
+    if (!window.confirm('Are you sure you want to delete this contact?')) return;
      try {
         const response = await deleteContact(Number(id));
         if (!response.ok) {
           console.error('delete contact failed', response.error);
-          return alert('Failed to delete contact: ' + getErrorMessage(response.error));
+          toast.error('Failed to delete contact: ' + getErrorMessage(response.error), {
+            position: 'top-center',
+            autoClose: 5000,
+            theme: 'dark',
+            transition: Slide,
+          });
+          return;
         }
       setContacts(contacts.filter(c => c.id !== id));
     } catch (e) {
       console.error('delete failed', e);
-      alert('Failed to delete contact');
+      toast.error('Failed to delete contact', {
+        position: 'top-center',
+        autoClose: 5000,
+        theme: 'dark',
+        transition: Slide,
+      });
     }
   };
 
@@ -226,7 +293,13 @@ const Contacts = () => {
 
         if (!response.ok) {
           console.error('update contact failed', response.error);
-          return alert('Failed to update contact: ' + getErrorMessage(response.error));
+          toast.error('Failed to update contact: ' + getErrorMessage(response.error), {
+            position: 'top-center',
+            autoClose: 5000,
+            theme: 'dark',
+            transition: Slide,
+          });
+          return;
         }
 
       setContacts(contacts.map(c => c.id === editingContact.id ? { ...c, ...editingContact } : c));
@@ -234,7 +307,12 @@ const Contacts = () => {
       setEditingContact(null);
     } catch (e) {
       console.error('update failed', e);
-      alert('Failed to update contact');
+      toast.error('Failed to update contact', {
+        position: 'top-center',
+        autoClose: 5000,
+        theme: 'dark',
+        transition: Slide,
+      });
     }
   };
 
@@ -405,20 +483,56 @@ const Contacts = () => {
             <div className="flex gap-2 pt-4">
               <Button 
                 onClick={async () => {
-                  if (!user) return alert('You must be signed in');
-                  if (!sendTarget?.address) return alert('Enter receiver address');
-                  if (!sendAmount || isNaN(Number(sendAmount))) return alert('Enter amount');
+                  if (!user) {
+                    toast.error('You must be signed in', {
+                      position: 'top-center',
+                      autoClose: 5000,
+                      theme: 'dark',
+                      transition: Slide,
+                    });
+                    return;
+                  }
+                  if (!sendTarget?.address) {
+                    toast.warning('Enter receiver address', {
+                      position: 'top-center',
+                      autoClose: 5000,
+                      theme: 'dark',
+                      transition: Slide,
+                    });
+                    return;
+                  }
+                  if (!sendAmount || isNaN(Number(sendAmount))) {
+                    toast.warning('Enter amount', {
+                      position: 'top-center',
+                      autoClose: 5000,
+                      theme: 'dark',
+                      transition: Slide,
+                    });
+                    return;
+                  }
                   
                    // Check if MetaMask is connected for blockchain transactions
                    if (useBlockchain && !isConnected) {
-                     return alert('Please connect MetaMask wallet to send real blockchain transactions');
+                     toast.error('Please connect MetaMask wallet to send real blockchain transactions', {
+                       position: 'top-center',
+                       autoClose: 5000,
+                       theme: 'dark',
+                       transition: Slide,
+                     });
+                     return;
                    }
 
                    // Check balance - use blockchain balance if available, otherwise database balance
                    const ethBalanceNum = ethBalance ? parseFloat(ethBalance) : 0;
                    const currentBalance = ethBalanceNum > 0 ? ethBalanceNum : balance;
                    if (currentBalance < Number(sendAmount)) {
-                     return alert(`Insufficient balance. You have $${currentBalance.toFixed(2)} available.`);
+                     toast.error(`Insufficient balance. You have $${currentBalance.toFixed(2)} available.`, {
+                       position: 'top-center',
+                       autoClose: 5000,
+                       theme: 'dark',
+                       transition: Slide,
+                     });
+                     return;
                    }
 
                    // build payload
@@ -502,10 +616,16 @@ const Contacts = () => {
                              console.warn('Error recording blockchain transaction:', e);
                            }
                          }
-                       } catch (error: any) {
-                         console.error('Blockchain transaction failed:', error);
-                         return alert('Blockchain transaction failed: ' + (error?.message || 'Unknown error'));
-                       }
+                        } catch (error: any) {
+                          console.error('Blockchain transaction failed:', error);
+                          toast.error('Blockchain transaction failed: ' + (error?.message || 'Unknown error'), {
+                            position: 'top-center',
+                            autoClose: 5000,
+                            theme: 'dark',
+                            transition: Slide,
+                          });
+                          return;
+                        }
                      }
 
                     // STEP 2: Record transaction in database
@@ -543,9 +663,19 @@ const Contacts = () => {
 
                       setIsSendModalOpen(false);
                       if (payload.tx_hash) {
-                        alert(`Transaction sent!\nHash: ${payload.tx_hash}\n\nCheck MetaMask for status.`);
+                        toast.success(`Transaction sent!\nHash: ${payload.tx_hash}\n\nCheck MetaMask for status.`, {
+                          position: 'top-center',
+                          autoClose: 5000,
+                          theme: 'dark',
+                          transition: Slide,
+                        });
                       } else {
-                        alert('Transaction sent! Check MetaMask for status.');
+                        toast.success('Transaction sent! Check MetaMask for status.', {
+                          position: 'top-center',
+                          autoClose: 5000,
+                          theme: 'dark',
+                          transition: Slide,
+                        });
                       }
                     } else if (sendPassword) {
                       // Original encrypted flow for non-blockchain or when password provided
@@ -585,22 +715,49 @@ const Contacts = () => {
                       const blockRes = await createBlock(blockData, previous_hash || undefined);
                       if (!blockRes.ok) {
                         console.error('send insert error', blockRes.error);
-                        return alert('Failed to record transaction: ' + getErrorMessage(blockRes.error));
+                        toast.error('Failed to record transaction: ' + getErrorMessage(blockRes.error), {
+                          position: 'top-center',
+                          autoClose: 5000,
+                          theme: 'dark',
+                          transition: Slide,
+                        });
+                        return;
                       }
 
                       setSymKey(sendPassword);
                       setIsSendModalOpen(false);
                       if (payload.tx_hash) {
-                        alert(`Transaction saved!\nBlockchain Hash: ${payload.tx_hash}`);
+                        toast.success(`Transaction saved!\nBlockchain Hash: ${payload.tx_hash}`, {
+                          position: 'top-center',
+                          autoClose: 5000,
+                          theme: 'dark',
+                          transition: Slide,
+                        });
                       } else {
-                        alert('Transaction saved locally (encrypted)');
+                        toast.success('Transaction saved locally (encrypted)', {
+                          position: 'top-center',
+                          autoClose: 5000,
+                          theme: 'dark',
+                          transition: Slide,
+                        });
                       }
                     } else {
-                      return alert('Please enter your wallet key or enable blockchain mode');
+                      toast.warning('Please enter your wallet key or enable blockchain mode', {
+                        position: 'top-center',
+                        autoClose: 5000,
+                        theme: 'dark',
+                        transition: Slide,
+                      });
+                      return;
                     }
                   } catch (e: any) {
                     console.error('send failed', e);
-                    alert('Send failed: ' + (e?.message || String(e)));
+                    toast.error('Send failed: ' + (e?.message || String(e)), {
+                      position: 'top-center',
+                      autoClose: 5000,
+                      theme: 'dark',
+                      transition: Slide,
+                    });
                   }
                 }} 
                 className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white border-0"

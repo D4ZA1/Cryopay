@@ -8,7 +8,10 @@ import { Mail, Lock, Eye, EyeOff, CheckCircle2, XCircle, Loader2 } from 'lucide-
 import { apiFetch } from '../lib/api';
 import { getErrorMessage } from '@/lib/utils';
 
-const CryoPayLogo = () => ( <div className="text-2xl font-bold tracking-tighter">Cryo<span className="text-slate-500">Pay</span></div> );
+const CryoPayLogo = () => (
+  <div className="text-2xl font-bold tracking-tighter">Cryo<span className="text-slate-500">Pay</span></div>
+);
+
 const PasswordRequirement = ({ met, text }: { met: boolean; text: string }) => ( <div className={`flex items-center text-sm ${met ? 'text-green-600' : 'text-slate-500'}`}>{met ? <CheckCircle2 className="h-4 w-4 mr-2" /> : <XCircle className="h-4 w-4 mr-2" />}{text}</div> );
 
 const SignUpCustodial = () => {

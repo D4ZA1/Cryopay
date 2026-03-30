@@ -10,11 +10,13 @@ import { WalletConnect } from '@/components/WalletConnect';
 import { connectMetaMask } from '@/lib/api';
 import { Loader2, AlertCircle } from 'lucide-react';
 
+const CryoPayLogo = () => (
+  <div className="text-2xl font-bold tracking-tighter">Cryo<span className="text-slate-500">Pay</span></div>
+);
+
 // SVG Icon Components for Wallets
 const CoinbaseIcon = () => (<svg width="32" height="32" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path fill="#0052FF" d="M12 22C6.477 22 2 17.523 2 12S6.477 2 12 2s10 4.477 10 10-4.477 10-10 10ZM8 9v6h8V9H8Zm1-2h6a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1Z"/></svg>);
 const WalletconnectIcon = () => (<svg width="32" height="32" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path fill="#3B99FC" d="M4.332 11.137a7.915 7.915 0 0 1 0-5.833l-1.9-1.9a10.82 10.82 0 0 0 0 9.633l1.9-1.9zM19.668 12.863a7.915 7.915 0 0 1 0 5.833l1.9 1.9a10.82 10.82 0 0 0 0-9.633l-1.9 1.9zM16.19 5.308a7.915 7.915 0 0 1 3.478 7.555l1.9-1.9a10.82 10.82 0 0 0-6.791-6.791l1.413 1.136zM7.81 18.692a7.915 7.915 0 0 1-3.478-7.555l-1.9 1.9a10.82 10.82 0 0 0 6.791 6.791l-1.413-1.136z"/></svg>);
-
-const CryoPayLogo = () => ( <div className="text-2xl font-bold tracking-tighter">Cryo<span className="text-slate-500">Pay</span></div> );
 const WalletButton = ({ name, tag, icon, onClick, disabled }: { name: string; tag?: string; icon: React.ReactNode; onClick?: () => void; disabled?: boolean }) => ( <Button onClick={onClick} variant="outline" className="w-full h-16 justify-start p-4 text-lg" disabled={disabled}><span className="w-8 h-8 mr-4 flex items-center justify-center">{icon}</span>{name}{tag && <span className="ml-auto text-xs font-semibold bg-slate-100 text-slate-500 px-2 py-1 rounded-full">{tag}</span>}</Button> );
 
 const SignUpNonCustodial = () => {

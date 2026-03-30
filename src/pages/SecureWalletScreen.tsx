@@ -8,9 +8,12 @@ import { apiFetch, getProfile, saveWallet } from '../lib/api';
 import { useEffect } from 'react';
 import { generateKeyPair, exportJwk, jwkThumbprint, encryptJwkWithPassword } from '../lib/crypto';
 import { getErrorMessage } from '@/lib/utils';
-// Auth handled via Worker API
 
-const CryoPayLogo = () => ( <div className="text-2xl font-bold tracking-tighter">Cryo<span className="text-slate-500">Pay</span></div> );
+const CryoPayLogo = () => (
+  <div className="text-2xl font-bold tracking-tighter">Cryo<span className="text-slate-500">Pay</span></div>
+);
+
+// Auth handled via Worker API
 
 const SecureWalletScreen = () => {
   const navigate = useNavigate();

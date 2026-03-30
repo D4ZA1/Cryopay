@@ -9,7 +9,9 @@ import { useAuth } from '../context/AuthContext';
 import { apiFetch } from '../lib/api';
 import { getErrorMessage } from '../lib/utils';
 
-const CryoPayLogo = () => ( <div className="text-2xl font-bold tracking-tighter">Cryo<span className="text-slate-500">Pay</span></div> );
+const CryoPayLogo = () => (
+  <div className="text-2xl font-bold tracking-tighter">Cryo<span className="text-slate-500">Pay</span></div>
+);
 
 const LoginScreen = () => {
   const [email, setEmail] = useState('');

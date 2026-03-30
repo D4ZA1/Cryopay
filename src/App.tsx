@@ -1,4 +1,6 @@
 import { Routes, Route } from 'react-router-dom';
+import { ToastContainer, Slide } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import AnimatedBackground from './components/AnimatedBackground';
 import LandingPage from './pages/LandingPage';
 import OnboardingScreen from './pages/Onboarding';
@@ -24,6 +26,20 @@ function App() {
   return (
     <>
       <AnimatedBackground />
+      <ToastContainer
+        position="top-center"
+        autoClose={5000}
+        limit={2}
+        hideProgressBar={false}
+        newestOnTop={true}
+        closeOnClick={false}
+        rtl={false}
+        pauseOnFocusLoss={true}
+        draggable={true}
+        pauseOnHover={true}
+        theme="dark"
+        transition={Slide}
+      />
       <Routes>
       {/* Public Routes */}
       <Route path="/" element={<LandingPage />} />

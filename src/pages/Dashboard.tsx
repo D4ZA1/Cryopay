@@ -44,6 +44,7 @@ import {
   StaggerItem,
   CountUp,
 } from "@/components/ScrollAnimations";
+import { toast, Slide } from "react-toastify";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -288,7 +289,12 @@ const Dashboard = () => {
     if (walletAddress) {
       setShowReceiveModal(true);
     } else {
-      alert("No wallet address found. Please set up your wallet first.");
+      toast.error("No wallet address found. Please set up your wallet first.", {
+        position: "top-center",
+        autoClose: 5000,
+        theme: "dark",
+        transition: Slide,
+      });
     }
   };
 
@@ -332,10 +338,10 @@ const Dashboard = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Balance Card */}
           <FadeInUp delay={0.1} className="lg:col-span-2">
-            <div className="relative group">
+            <div className="relative group transition-all duration-300 ease-in-out hover:scale-[1.02]">
               {/* Gradient glow border */}
               <div className="absolute -inset-[1px] rounded-2xl bg-gradient-to-r from-emerald-500/20 via-cyan-500/20 to-blue-500/20 opacity-60 group-hover:opacity-100 blur-sm transition-opacity duration-500" />
-              <Card className="relative bg-slate-900/80 backdrop-blur-xl border-white/[0.06] rounded-2xl overflow-hidden">
+              <Card className="relative bg-slate-900/80 backdrop-blur-xl border-white/[0.06] rounded-2xl overflow-hidden shadow-lg hover:shadow-emerald-500/20 transition-shadow duration-300">
                 {/* Background decorations */}
                 <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3" />
                 <div className="absolute bottom-0 left-0 w-48 h-48 bg-cyan-500/5 rounded-full blur-3xl translate-y-1/2 -translate-x-1/3" />

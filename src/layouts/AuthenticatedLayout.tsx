@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Bell, Search } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
+import ScrollToTopButton from '@/components/ScrollToTopButton';
 import { useAuth } from '@/context/AuthContext';
 
 const AuthenticatedLayout: React.FC = () => {
@@ -38,6 +39,8 @@ const AuthenticatedLayout: React.FC = () => {
         <div className="p-0">
           <Outlet />
         </div>
+
+        <ScrollToTopButton />
       </main>
     </div>
   );

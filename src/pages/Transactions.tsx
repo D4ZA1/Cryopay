@@ -18,6 +18,7 @@ import {
   TransactionDirection
 } from '../constants';
 import { getErrorMessage } from '@/lib/utils';
+import { toast, Slide } from 'react-toastify';
 
 // Helper function to determine transaction direction
 const determineTransactionDirection = (
@@ -578,14 +579,34 @@ const Transactions = () => {
                                 const pw = passwords[tx.id];
                                 // user attempted decrypt
                                 if (!pw) {
-                                  return alert('Enter a key or unlock your wallet (session key may be available)');
+                                  return toast.warning('Enter a key or unlock your wallet', {
+                                    position: "top-center",
+                                    autoClose: 5000,
+                                    hideProgressBar: false,
+                                    closeOnClick: false,
+                                    pauseOnHover: true,
+                                    draggable: true,
+                                    progress: undefined,
+                                    theme: "dark",
+                                    transition: Slide,
+                                  });
                                 }
                                 try {
                                   const blob = tx.raw?.data?.encrypted_blob;
                                   // encrypted blob for tx is available in blob
                                   if (!blob) {
                                     console.warn('[Transactions] no encrypted_blob present for tx', tx.id);
-                                    return alert('No encrypted data for this transaction');
+                                    return toast.error('No encrypted data for this transaction', {
+                                      position: "top-center",
+                                      autoClose: 5000,
+                                      hideProgressBar: false,
+                                      closeOnClick: false,
+                                      pauseOnHover: true,
+                                      draggable: true,
+                                      progress: undefined,
+                                      theme: "dark",
+                                      transition: Slide,
+                                    });
                                   }
                                   const plain = await decryptJSONWithPassword(blob, pw);
                                   // decrypt success
@@ -593,7 +614,17 @@ const Transactions = () => {
                                   setSymKey(pw);
                                  } catch (e: any) {
                                    console.error('decrypt failed', e);
-                                   alert('Decryption failed: ' + getErrorMessage(e));
+                                   toast.error('Decryption failed: ' + getErrorMessage(e), {
+                                     position: "top-center",
+                                     autoClose: 5000,
+                                     hideProgressBar: false,
+                                     closeOnClick: false,
+                                     pauseOnHover: true,
+                                     draggable: true,
+                                     progress: undefined,
+                                     theme: "dark",
+                                     transition: Slide,
+                                   });
                                 }
                               }} className="bg-emerald-500 hover:bg-emerald-600 text-white">Decrypt</Button>
                               <Button type="button" variant="outline" size="sm" onClick={() => { setOpenRow(null); }} className="bg-white/[0.06] border-white/[0.06] hover:bg-white/[0.1] text-slate-400">Close</Button>

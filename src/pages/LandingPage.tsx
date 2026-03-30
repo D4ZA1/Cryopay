@@ -5,6 +5,7 @@ import Features from '../components/Features';
 import Testimonial from '../components/Testimonial';
 import CallToAction from '../components/CallToAction';
 import Footer from '../components/Footer';
+import ScrollToTopButton from '../components/ScrollToTopButton';
 import { useEffect, useState } from 'react';
 import { supabase } from '../supabase';
 
@@ -65,6 +66,7 @@ const LandingPage = () => {
         <RecentActivity />
       </main>
       <Footer />
+      <ScrollToTopButton variant="light" />
     </div>
   );
 };
