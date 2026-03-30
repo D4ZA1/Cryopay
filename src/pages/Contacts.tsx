@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Search, Plus, Send, Edit, Trash2, User } from 'lucide-react';
-import { getContacts, createContact, deleteContact, getProfile, apiFetch, getBlocks, createBlock, updateContact } from '../lib/api';
+import { getContacts, createContact, deleteContact, getProfile, apiFetch, getBlocks, createBlock, updateContact, recordTransaction } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 import { useEthereum } from '../context/EthereumContext';
 import { useSendEth } from '../hooks/useSendTransaction';
@@ -470,25 +470,43 @@ const Contacts = () => {
                   };
 
                    try {
-                    // STEP 1: Send real blockchain transaction if enabled
-                    if (useBlockchain && sendCrypto === 'ETH') {
-                      try {
-                        console.log(`Sending ${amountCrypto} ETH to ${sendTarget.address}...`);
-                        const { hash: txHash, receipt } = await sendEthAndWait(sendTarget.address, amountCrypto.toString());
-                        
-                        // Transaction is confirmed, we have both hash and receipt
-                        if (txHash && receipt) {
-                          payload.tx_hash = txHash;
-                          console.log('Transaction confirmed!');
-                          console.log('Hash:', txHash);
-                          console.log('Block Number:', receipt.blockNumber);
-                          console.log('Gas Used:', receipt.gasUsed);
-                        }
-                      } catch (error: any) {
-                        console.error('Blockchain transaction failed:', error);
-                        return alert('Blockchain transaction failed: ' + (error?.message || 'Unknown error'));
-                      }
-                    }
+                     // STEP 1: Send real blockchain transaction if enabled
+                     if (useBlockchain && sendCrypto === 'ETH') {
+                       try {
+                         console.log(`Sending ${amountCrypto} ETH to ${sendTarget.address}...`);
+                         const { hash: txHash, receipt } = await sendEthAndWait(sendTarget.address, amountCrypto.toString());
+                         
+                         // Transaction is confirmed, we have both hash and receipt
+                         if (txHash && receipt) {
+                           payload.tx_hash = txHash;
+                           console.log('Transaction confirmed!');
+                           console.log('Hash:', txHash);
+                           console.log('Block Number:', receipt.blockNumber);
+                           console.log('Gas Used:', receipt.gasUsed);
+                           
+                           // Record transaction on blockchain_transactions table
+                           try {
+                             const amountWei = (amountCrypto * 1e18).toFixed(0); // Convert ETH to Wei
+                             const recordRes = await recordTransaction({
+                               to: sendTarget.address,
+                               amount: amountWei,
+                               currency: 'ETH',
+                               offChainTxHash: txHash,
+                             });
+                             
+                             if (!recordRes.ok) {
+                               console.warn('Failed to record on blockchain_transactions:', recordRes.error);
+                               // Don't fail the whole transaction just because of this
+                             }
+                           } catch (e) {
+                             console.warn('Error recording blockchain transaction:', e);
+                           }
+                         }
+                       } catch (error: any) {
+                         console.error('Blockchain transaction failed:', error);
+                         return alert('Blockchain transaction failed: ' + (error?.message || 'Unknown error'));
+                       }
+                     }
 
                     // STEP 2: Record transaction in database
                     if (!sendPassword && useBlockchain) {

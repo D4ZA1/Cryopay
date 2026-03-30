@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ArrowRightLeft, TrendingUp, TrendingDown, AlertCircle, Loader2, CheckCircle2, XCircle } from 'lucide-react';
-import { getBlocks, getProfile, createBlock } from '../lib/api';
+import { getBlocks, getProfile, createBlock, recordTransaction } from '../lib/api';
 import { encryptJSONWithPassword } from '../lib/crypto';
 import { getSymKey, setSymKey } from '../lib/symmetricSession';
 import { useNavigate } from 'react-router-dom';
@@ -299,21 +299,39 @@ const BuySell = () => {
         }
 
         // Execute blockchain transaction
-        setTxStatus('sending');
-        try {
-          const result = await sendEthAndWait(EXCHANGE_ADDRESS, cryptoAmt.toString());
-          setTxHash(result.hash);
-          setTxStatus('confirming');
-          
-          // Transaction confirmed - now save to database
-          const payload = await buildPayload(fiatAmount, cryptoAmt, result.hash, true);
-          await saveTransaction(payload);
-        } catch (e: any) {
-          console.error('Blockchain transaction failed:', e);
-          setTxStatus('error');
-          setTxError(e?.message || 'Blockchain transaction failed. No funds were transferred.');
-          return;
-        }
+         setTxStatus('sending');
+         try {
+           const result = await sendEthAndWait(EXCHANGE_ADDRESS, cryptoAmt.toString());
+           setTxHash(result.hash);
+           setTxStatus('confirming');
+           
+           // Record transaction on blockchain_transactions table
+           try {
+             const amountWei = (cryptoAmt * 1e18).toFixed(0); // Convert ETH to Wei
+             const recordRes = await recordTransaction({
+               to: EXCHANGE_ADDRESS,
+               amount: amountWei,
+               currency: 'ETH',
+               offChainTxHash: result.hash,
+             });
+             
+             if (!recordRes.ok) {
+               console.warn('Failed to record on blockchain_transactions:', recordRes.error);
+               // Don't fail the whole transaction just because of this
+             }
+           } catch (e) {
+             console.warn('Error recording blockchain transaction:', e);
+           }
+           
+           // Transaction confirmed - now save to database
+           const payload = await buildPayload(fiatAmount, cryptoAmt, result.hash, true);
+           await saveTransaction(payload);
+         } catch (e: any) {
+           console.error('Blockchain transaction failed:', e);
+           setTxStatus('error');
+           setTxError(e?.message || 'Blockchain transaction failed. No funds were transferred.');
+           return;
+         }
       } else {
         // Non-ETH crypto - just record in database (no blockchain tx for demo)
         // Use ETH balance if available (real blockchain), otherwise fall back to database balance
