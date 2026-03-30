@@ -21,8 +21,19 @@ export const hardhatLocal: Chain = {
   testnet: true,
 };
 
+// Custom Sepolia chain definition with environment RPC URL
+export const sepoliaCustom: Chain = {
+  ...sepolia,
+  rpcUrls: {
+    ...sepolia.rpcUrls,
+    default: {
+      http: [import.meta.env.VITE_ETHEREUM_RPC_URL || sepolia.rpcUrls.default.http[0]],
+    },
+  },
+};
+
 // Supported chains array
-export const SUPPORTED_CHAINS = [hardhatLocal, sepolia, mainnet] as const;
+export const SUPPORTED_CHAINS = [hardhatLocal, sepoliaCustom, mainnet] as const;
 
 // Locked contract address from environment
 export const CONTRACT_ADDRESS = (import.meta.env.VITE_CONTRACT_ADDRESS ||
@@ -47,7 +58,7 @@ export const config = createConfig({
   connectors: [metaMask()],
   transports: {
     [hardhatLocal.id]: http(import.meta.env.VITE_ETHEREUM_RPC_URL || 'http://127.0.0.1:8545'),
-    [sepolia.id]: http(),
+    [sepolia.id]: http(import.meta.env.VITE_ETHEREUM_RPC_URL || undefined),
     [mainnet.id]: http(),
   },
 });
