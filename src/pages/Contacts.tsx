@@ -84,6 +84,9 @@ const Contacts = () => {
   const { isConnected, balance: ethBalance } = useEthereum();
   const { sendEthAndWait, isSending, isConfirming } = useSendEth();
 
+  // Helper to check if current user is a MetaMask wallet user
+  const isMetaMaskUser = user?.email?.endsWith('@wallet.cryopay') ?? false;
+
   // Fetch real ETH price on mount
   useEffect(() => {
     const fetchEthPrice = async () => {
@@ -512,7 +515,7 @@ const Contacts = () => {
                   }
                   
                    // Check if MetaMask is connected for blockchain transactions
-                   if (useBlockchain && !isConnected) {
+                   if (useBlockchain && (!isMetaMaskUser || !isConnected)) {
                      toast.error('Please connect MetaMask wallet to send real blockchain transactions', {
                        position: 'top-center',
                        autoClose: 5000,
@@ -522,8 +525,8 @@ const Contacts = () => {
                      return;
                    }
 
-                   // Check balance - use blockchain balance if available, otherwise database balance
-                   const ethBalanceNum = ethBalance ? parseFloat(ethBalance) : 0;
+                   // Check balance - use blockchain balance if MetaMask user and connected, otherwise database balance
+                   const ethBalanceNum = (isMetaMaskUser && ethBalance) ? parseFloat(ethBalance) : 0;
                    const currentBalance = ethBalanceNum > 0 ? ethBalanceNum : balance;
                    if (currentBalance < Number(sendAmount)) {
                      toast.error(`Insufficient balance. You have $${currentBalance.toFixed(2)} available.`, {

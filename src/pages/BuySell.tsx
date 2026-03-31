@@ -73,6 +73,9 @@ const BuySell = () => {
   const { sendEthAndWait } = useSendEth();
   const navigate = useNavigate();
   
+  // Helper to check if current user is a MetaMask wallet user
+  const isMetaMaskUser = user?.email?.endsWith('@wallet.cryopay') ?? false;
+  
   const [activeTab, setActiveTab] = useState('buy'); // 'buy' or 'sell'
   const [selectedCrypto, setSelectedCrypto] = useState(CRYPTOCURRENCIES[0]);
   const [selectedPrice, setSelectedPrice] = useState<number>(selectedCrypto.code === 'USDT' ? 1 : 0);
@@ -311,8 +314,8 @@ const BuySell = () => {
     if (activeTab === 'sell') {
       // Check if selling ETH (blockchain transaction required)
       if (selectedCrypto.code === 'ETH') {
-        // Check wallet connection
-        if (!walletConnected) {
+        // Check wallet connection (only for MetaMask users)
+        if (isMetaMaskUser && !walletConnected) {
           setTxStatus('connecting');
           try {
             await connectWallet();
@@ -323,12 +326,14 @@ const BuySell = () => {
           }
         }
 
-        // Check ETH balance
-        const ethBalanceNum = ethBalance ? parseFloat(ethBalance) : 0;
-        if (ethBalanceNum < cryptoAmt) {
-          setTxStatus('error');
-          setTxError(`Insufficient ETH balance. You have ${ethBalanceNum.toFixed(6)} ETH but trying to sell ${cryptoAmt.toFixed(6)} ETH`);
-          return;
+        // Check ETH balance (only for MetaMask users)
+        if (isMetaMaskUser) {
+          const ethBalanceNum = ethBalance ? parseFloat(ethBalance) : 0;
+          if (ethBalanceNum < cryptoAmt) {
+            setTxStatus('error');
+            setTxError(`Insufficient ETH balance. You have ${ethBalanceNum.toFixed(6)} ETH but trying to sell ${cryptoAmt.toFixed(6)} ETH`);
+            return;
+          }
         }
 
         // Execute blockchain transaction
@@ -367,8 +372,8 @@ const BuySell = () => {
          }
       } else {
         // Non-ETH crypto - just record in database (no blockchain tx for demo)
-        // Use ETH balance if available (real blockchain), otherwise fall back to database balance
-        const currentBalance = ethBalance ? parseFloat(ethBalance) : balance;
+        // Use ETH balance if available for MetaMask users (real blockchain), otherwise fall back to database balance
+        const currentBalance = (isMetaMaskUser && ethBalance) ? parseFloat(ethBalance) : balance;
         if (currentBalance < fiatAmount) {
           toast.error(`Insufficient balance. You have $${currentBalance.toFixed(2)} available.`, {
             position: 'top-center',
@@ -388,8 +393,8 @@ const BuySell = () => {
       // In a real system, this would trigger a fiat payment gateway
       
       if (selectedCrypto.code === 'ETH') {
-        // Check wallet connection (need address to receive ETH)
-        if (!walletConnected) {
+        // Check wallet connection (need address to receive ETH) - only for MetaMask users
+        if (isMetaMaskUser && !walletConnected) {
           setTxStatus('connecting');
           try {
             await connectWallet();
@@ -737,14 +742,14 @@ const BuySell = () => {
             <CardContent>
               <p className="text-2xl font-bold text-white">{balance ? `$${balance.toFixed(2)}` : '$0.00'}</p>
               <p className="text-sm text-slate-500 mt-1">Fiat balance</p>
-              {walletConnected && ethBalance && (
+              {isMetaMaskUser && walletConnected && ethBalance && (
                 <div className="mt-3 pt-3 border-t border-white/[0.06]">
                   <p className="text-lg font-bold text-cyan-400">{parseFloat(ethBalance).toFixed(6)} ETH</p>
                   <p className="text-sm text-slate-500">Connected wallet</p>
                   <p className="text-xs text-slate-600 font-mono mt-1">{walletAddress?.slice(0, 6)}...{walletAddress?.slice(-4)}</p>
                 </div>
               )}
-              {!walletConnected && (
+              {isMetaMaskUser && !walletConnected && (
                 <div className="mt-3 pt-3 border-t border-white/[0.06]">
                   <p className="text-sm text-slate-500 mb-2">Connect wallet for ETH trading</p>
                   <Button 

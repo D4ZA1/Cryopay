@@ -75,6 +75,9 @@ const Transactions = () => {
   const [blockchainLoading, setBlockchainLoading] = useState(false);
   const [showBlockchain, setShowBlockchain] = useState(false);
 
+  // Helper to check if current user is a MetaMask wallet user
+  const isMetaMaskUser = user?.email?.endsWith('@wallet.cryopay') ?? false;
+
   // Function to fetch transactions (extracted for refresh button)
   const fetchTransactions = async () => {
     let mounted = true;
@@ -185,7 +188,7 @@ const Transactions = () => {
 
   // Function to fetch blockchain transactions
   const fetchBlockchainTransactions = async () => {
-    if (!isEthConnected) return;
+    if (!(isMetaMaskUser && isEthConnected)) return;
     setBlockchainLoading(true);
     try {
       const response = await getBlockchainTransactions(50, 0);
@@ -206,7 +209,7 @@ const Transactions = () => {
 
   // Fetch blockchain transactions when connected
   useEffect(() => {
-    if (isEthConnected) {
+    if (isMetaMaskUser && isEthConnected) {
       fetchBlockchainTransactions();
     }
   }, [isEthConnected]);
@@ -317,7 +320,7 @@ const Transactions = () => {
             </div>
             <div className="flex gap-2 flex-wrap">
               {/* Off-chain / Blockchain toggle */}
-              {isEthConnected && (
+              {isMetaMaskUser && isEthConnected && (
                 <div className="flex gap-2">
                   <Button
                     variant={!showBlockchain ? "default" : "outline"}
@@ -411,7 +414,7 @@ const Transactions = () => {
               </thead>
               <tbody>
                 {/* Blockchain transactions view */}
-                {showBlockchain && isEthConnected ? (
+                {showBlockchain && isMetaMaskUser && isEthConnected ? (
                   blockchainLoading ? (
                     <tr>
                       <td colSpan={5} className="text-center py-8 text-slate-500">
