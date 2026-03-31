@@ -63,8 +63,10 @@ const SignUpNonCustodial = () => {
         // Login the user
         login(response.data.token, {
           id: response.data.user.id,
-          firstName: firstName.trim() || 'User',
-          lastName: lastName.trim(),
+          // Use backend data if available (returning user), otherwise use form input (new user)
+          firstName: response.data.user.firstName || firstName.trim() || 'User',
+          lastName: response.data.user.lastName || lastName.trim(),
+          email: response.data.user.email,
         });
         
         // Navigate to dashboard
