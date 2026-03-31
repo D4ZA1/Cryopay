@@ -329,3 +329,10 @@ export async function syncBlockchainTransactions() {
     method: 'POST',
   });
 }
+
+/**
+ * Get real transaction history from Etherscan
+ */
+export async function getTransactionHistory(limit = 20, page = 1) {
+  return apiFetch(`/api/blockchain/history?limit=${limit}&page=${page}`);
+}

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,14 +24,21 @@ const SignUpNonCustodial = () => {
   const [lastName, setLastName] = useState('');
   const [isRegistering, setIsRegistering] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [hasTriggeredRegistration, setHasTriggeredRegistration] = useState(false);
   
   const navigate = useNavigate();
   const { login } = useAuth();
   const { address, isConnected, signMessage, isMetaMaskInstalled } = useEthereum();
 
   const handleMetaMaskConnect = useCallback(async () => {
-    if (!isConnected || !address) return;
+    if (!isConnected || !address) {
+      setError('Wallet not connected');
+      return;
+    }
+    
+    if (!firstName.trim()) {
+      setError('Please enter your first name before registering');
+      return;
+    }
     
     setIsRegistering(true);
     setError(null);
@@ -48,16 +55,16 @@ const SignUpNonCustodial = () => {
         address,
         signature,
         message,
-        firstName: firstName || undefined,
-        lastName: lastName || undefined,
+        firstName: firstName.trim(),
+        lastName: lastName.trim() || undefined,
       });
       
       if (response.ok && response.data?.token) {
         // Login the user
         login(response.data.token, {
           id: response.data.user.id,
-          firstName: firstName || 'User',
-          lastName,
+          firstName: firstName.trim() || 'User',
+          lastName: lastName.trim(),
         });
         
         // Navigate to dashboard
@@ -71,21 +78,6 @@ const SignUpNonCustodial = () => {
       setIsRegistering(false);
     }
   }, [isConnected, address, signMessage, firstName, lastName, login, navigate]);
-
-  // Trigger registration when wallet connects
-  useEffect(() => {
-    if (isConnected && address && firstName && !hasTriggeredRegistration && !isRegistering) {
-      setHasTriggeredRegistration(true);
-      handleMetaMaskConnect();
-    }
-  }, [isConnected, address, firstName, hasTriggeredRegistration, isRegistering, handleMetaMaskConnect]);
-
-  // Reset trigger when wallet disconnects
-  useEffect(() => {
-    if (!isConnected) {
-      setHasTriggeredRegistration(false);
-    }
-  }, [isConnected]);
 
   const handleWalletError = (err: Error) => {
     setError(err.message);
@@ -152,11 +144,11 @@ const SignUpNonCustodial = () => {
               </div>
             )}
             
-            <div>
-              <Label>Connect Your Wallet</Label>
-              <p className="text-sm text-slate-500 mb-4">Choose your wallet to create and secure your account.</p>
+              <div>
+              <Label>Connect Wallet & Register</Label>
+              <p className="text-sm text-slate-500 mb-4">Enter your details above, then connect your wallet to complete registration.</p>
               
-              {!firstName && (
+              {!firstName.trim() && (
                 <p className="text-sm text-amber-600 mb-4">Please enter your first name before connecting your wallet.</p>
               )}
               
@@ -166,13 +158,14 @@ const SignUpNonCustodial = () => {
                   <div className="relative">
                     <WalletConnect
                       onConnected={() => {
-                        // Registration is handled by useEffect
+                        // Trigger registration after wallet connects
+                        handleMetaMaskConnect();
                       }}
                       onError={handleWalletError}
                       showBalance={false}
-                      className={!firstName ? 'opacity-50 pointer-events-none' : ''}
+                      className={!firstName.trim() || isRegistering ? 'opacity-50 pointer-events-none' : ''}
                     />
-                    {!firstName && (
+                    {(!firstName.trim() || isRegistering) && (
                       <div className="absolute inset-0 cursor-not-allowed" />
                     )}
                   </div>

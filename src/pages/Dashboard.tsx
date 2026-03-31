@@ -33,7 +33,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useEthereum } from "@/context/EthereumContext";
 import { useEffect, useState, useCallback, useRef } from "react";
-import { getBlocks, getWallet } from "../lib/api";
+import { getBlocks, getWallet, getTransactionHistory } from "../lib/api";
 import { TransactionKind } from "../constants";
 import { motion, AnimatePresence } from "framer-motion";
 import CryptoTicker from "@/components/CryptoTicker";
@@ -124,6 +124,7 @@ const Dashboard = () => {
   const { user, balance, setBalance } = useAuth();
   const { address: ethAddress, isConnected: isEthConnected, balance: ethBalance } = useEthereum();
   const [recentTx, setRecentTx] = useState<any[]>([]);
+  const [blockchainTx, setBlockchainTx] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [walletAddress, setWalletAddress] = useState<string>("");
   const [showReceiveModal, setShowReceiveModal] = useState(false);
@@ -173,6 +174,24 @@ const Dashboard = () => {
       }
     })();
   }, [user]);
+
+  // Fetch blockchain transactions for MetaMask users
+  useEffect(() => {
+    if (!isEthConnected || !user) return;
+
+    const fetchBlockchainTx = async () => {
+      try {
+        const response = await getTransactionHistory(6, 1);
+        if (response.ok && response.data?.transactions) {
+          setBlockchainTx(response.data.transactions);
+        }
+      } catch (e) {
+        console.warn("blockchain tx fetch error", e);
+      }
+    };
+
+    fetchBlockchainTx();
+  }, [isEthConnected, user]);
 
   // Fetch balance from blocks
   useEffect(() => {
@@ -679,103 +698,197 @@ const Dashboard = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {recentTx.length === 0 && !loading ? (
-                    <TableRow className="border-white/[0.06] hover:bg-white/[0.02]">
-                      <TableCell colSpan={3}>
-                        <div className="flex flex-col items-center justify-center py-12 text-slate-500">
-                          <Activity className="h-10 w-10 text-slate-700 mb-3" />
-                          <p className="text-sm font-medium">
-                            No recent activity
-                          </p>
-                          <p className="text-xs text-slate-600 mt-1">
-                            Your transactions will appear here
-                          </p>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    recentTx.map((row: any, i: number) => {
-                      const s = row?.data?.public_summary || {};
-                      const kind = s.kind || TransactionKind.TX;
-                      const isSent =
-                        kind === TransactionKind.BUY ||
-                        kind === TransactionKind.SELL ||
-                        s.from_user_id === user?.id ||
-                        row.user_id === user?.id ||
-                        s.from === user?.id;
-                      const displayTitle = isSent
-                        ? s.to
-                          ? `To ${s.to}`
-                          : `${s.kind || "Sent"}`
-                        : s.from
-                          ? `From ${s.from}`
-                          : s.kind || "Received";
-                      const amountUSD = s.amountFiat ?? null;
-                      const amountCrypto = s.amountCrypto ?? null;
-                      const date = s.timestamp
-                        ? new Date(s.timestamp).toLocaleString()
-                        : "";
+                  {/* Blockchain transactions for MetaMask users */}
+                  {isEthConnected ? (
+                    blockchainTx.length === 0 && !loading ? (
+                      <TableRow className="border-white/[0.06] hover:bg-white/[0.02]">
+                        <TableCell colSpan={3}>
+                          <div className="flex flex-col items-center justify-center py-12 text-slate-500">
+                            <Activity className="h-10 w-10 text-slate-700 mb-3" />
+                            <p className="text-sm font-medium">
+                              No blockchain transactions
+                            </p>
+                            <p className="text-xs text-slate-600 mt-1">
+                              Your Sepolia transactions will appear here
+                            </p>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      blockchainTx.map((tx: any) => {
+                        const isSent = tx.from_address?.toLowerCase() === ethAddress?.toLowerCase();
+                        const displayAddress = isSent ? tx.to_address : tx.from_address;
+                        const truncatedAddress = displayAddress
+                          ? `${displayAddress.slice(0, 6)}...${displayAddress.slice(-4)}`
+                          : "Unknown";
+                        const amountEth = tx.amount_wei
+                          ? parseFloat(tx.amount_wei) / 1e18
+                          : 0;
+                        const date = tx.timestamp
+                          ? new Date(tx.timestamp).toLocaleString()
+                          : "";
+                        
+                        const getBlockchainStatusClass = (status: string) => {
+                          switch (status) {
+                            case "confirmed":
+                              return "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
+                            case "pending":
+                              return "bg-amber-500/10 text-amber-400 border border-amber-500/20";
+                            case "failed":
+                              return "bg-red-500/10 text-red-400 border border-red-500/20";
+                            default:
+                              return "bg-slate-500/10 text-slate-400 border border-slate-500/20";
+                          }
+                        };
 
-                      return (
-                        <motion.tr
-                          key={i}
-                          className="border-white/[0.06] hover:bg-white/[0.02] transition-colors"
-                          initial={{ opacity: 0, x: -10 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={{
-                            duration: 0.3,
-                            delay: i * 0.05,
-                            ease: "easeOut",
-                          }}
-                        >
-                          <TableCell className="py-4">
-                            <div className="flex items-center gap-3">
-                              <span className="p-2 rounded-xl bg-white/[0.04] border border-white/[0.06]">
-                                {getTransactionIcon(
-                                  isSent ? "Sent" : "Received"
-                                )}
-                              </span>
-                              <div>
-                                <div className="font-medium text-white text-sm">
-                                  {displayTitle}
-                                </div>
-                                <div className="text-xs text-slate-500">
-                                  {date}
+                        return (
+                          <motion.tr
+                            key={tx.tx_hash || tx.id}
+                            className="border-white/[0.06] hover:bg-white/[0.02] transition-colors"
+                            initial={{ opacity: 0, x: -10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{
+                              duration: 0.3,
+                              ease: "easeOut",
+                            }}
+                          >
+                            <TableCell className="py-4">
+                              <div className="flex items-center gap-3">
+                                <span className="p-2 rounded-xl bg-white/[0.04] border border-white/[0.06]">
+                                  {getTransactionIcon(isSent ? "Sent" : "Received")}
+                                </span>
+                                <div>
+                                  <div className="font-medium text-white text-sm">
+                                    {isSent ? `To ${truncatedAddress}` : `From ${truncatedAddress}`}
+                                  </div>
+                                  <div className="text-xs text-slate-500">
+                                    {date}
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-right py-4">
-                            <div
-                              className={`font-semibold text-sm ${
-                                amountUSD && amountUSD > 0
-                                  ? "text-emerald-400"
-                                  : "text-white"
-                              }`}
-                            >
-                              {amountUSD != null
-                                ? amountUSD.toLocaleString("en-US", {
-                                    style: "currency",
-                                    currency: "USD",
-                                  })
-                                : "—"}
-                            </div>
-                            <div className="text-xs text-slate-500">
-                              {amountCrypto != null
-                                ? `≈ ${Math.abs(amountCrypto)} ${s.crypto || ""}`
-                                : ""}
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-center py-4">
-                            <span
-                              className={`px-2.5 py-1 text-[10px] font-semibold rounded-full ${getStatusClass("Completed")}`}
-                            >
-                              Completed
-                            </span>
-                          </TableCell>
-                        </motion.tr>
-                      );
-                    })
+                            </TableCell>
+                            <TableCell className="text-right py-4">
+                              <div
+                                className={`font-semibold text-sm ${
+                                  !isSent ? "text-emerald-400" : "text-white"
+                                }`}
+                              >
+                                {isSent ? "-" : "+"}{amountEth.toFixed(6)} ETH
+                              </div>
+                              <div className="text-xs text-slate-500">
+                                ≈ ${(amountEth * 3000).toFixed(2)} USD
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-center py-4">
+                              <span
+                                className={`px-2.5 py-1 text-[10px] font-semibold rounded-full capitalize ${getBlockchainStatusClass(tx.status)}`}
+                              >
+                                {tx.status || "Unknown"}
+                              </span>
+                            </TableCell>
+                          </motion.tr>
+                        );
+                      })
+                    )
+                  ) : (
+                    /* Off-chain blocks for custodial users */
+                    recentTx.length === 0 && !loading ? (
+                      <TableRow className="border-white/[0.06] hover:bg-white/[0.02]">
+                        <TableCell colSpan={3}>
+                          <div className="flex flex-col items-center justify-center py-12 text-slate-500">
+                            <Activity className="h-10 w-10 text-slate-700 mb-3" />
+                            <p className="text-sm font-medium">
+                              No recent activity
+                            </p>
+                            <p className="text-xs text-slate-600 mt-1">
+                              Your transactions will appear here
+                            </p>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      recentTx.map((row: any) => {
+                        const s = row?.data?.public_summary || {};
+                        const kind = s.kind || TransactionKind.TX;
+                        const isSent =
+                          kind === TransactionKind.BUY ||
+                          kind === TransactionKind.SELL ||
+                          s.from_user_id === user?.id ||
+                          row.user_id === user?.id ||
+                          s.from === user?.id;
+                        const displayTitle = isSent
+                          ? s.to
+                            ? `To ${s.to}`
+                            : `${s.kind || "Sent"}`
+                          : s.from
+                            ? `From ${s.from}`
+                            : s.kind || "Received";
+                        const amountUSD = s.amountFiat ?? null;
+                        const amountCrypto = s.amountCrypto ?? null;
+                        const date = s.timestamp
+                          ? new Date(s.timestamp).toLocaleString()
+                          : "";
+
+                        return (
+                          <motion.tr
+                            key={row.id || row.hash}
+                            className="border-white/[0.06] hover:bg-white/[0.02] transition-colors"
+                            initial={{ opacity: 0, x: -10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{
+                              duration: 0.3,
+                              ease: "easeOut",
+                            }}
+                          >
+                            <TableCell className="py-4">
+                              <div className="flex items-center gap-3">
+                                <span className="p-2 rounded-xl bg-white/[0.04] border border-white/[0.06]">
+                                  {getTransactionIcon(
+                                    isSent ? "Sent" : "Received"
+                                  )}
+                                </span>
+                                <div>
+                                  <div className="font-medium text-white text-sm">
+                                    {displayTitle}
+                                  </div>
+                                  <div className="text-xs text-slate-500">
+                                    {date}
+                                  </div>
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-right py-4">
+                              <div
+                                className={`font-semibold text-sm ${
+                                  amountUSD && amountUSD > 0
+                                    ? "text-emerald-400"
+                                    : "text-white"
+                                }`}
+                              >
+                                {amountUSD != null
+                                  ? amountUSD.toLocaleString("en-US", {
+                                      style: "currency",
+                                      currency: "USD",
+                                    })
+                                  : "—"}
+                              </div>
+                              <div className="text-xs text-slate-500">
+                                {amountCrypto != null
+                                  ? `≈ ${Math.abs(amountCrypto)} ${s.crypto || ""}`
+                                  : ""}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-center py-4">
+                              <span
+                                className={`px-2.5 py-1 text-[10px] font-semibold rounded-full ${getStatusClass("Completed")}`}
+                              >
+                                Completed
+                              </span>
+                            </TableCell>
+                          </motion.tr>
+                        );
+                      })
+                    )
                   )}
                 </TableBody>
               </Table>

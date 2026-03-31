@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useEthereum } from '@/context/EthereumContext';
 import { LogOut, Loader2, AlertCircle, ExternalLink } from 'lucide-react';
@@ -56,12 +56,16 @@ export function WalletConnect({
     error,
   } = useEthereum();
 
-  // Call callbacks when state changes
+  // Track previous connection state to detect actual connection events
+  const [wasConnected, setWasConnected] = useState(isConnected);
+
+  // Call onConnected only when connection state changes from false to true
   useEffect(() => {
-    if (isConnected && address && onConnected) {
+    if (isConnected && address && !wasConnected && onConnected) {
       onConnected(address);
     }
-  }, [isConnected, address, onConnected]);
+    setWasConnected(isConnected);
+  }, [isConnected, address, wasConnected, onConnected]);
 
   useEffect(() => {
     if (!isConnected && onDisconnected) {
