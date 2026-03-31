@@ -123,6 +123,10 @@ const Dashboard = () => {
   const isNonCustodial = true;
   const { user, balance, setBalance } = useAuth();
   const { address: ethAddress, isConnected: isEthConnected, balance: ethBalance } = useEthereum();
+  
+  // Helper to check if current user is a MetaMask wallet user
+  const isMetaMaskUser = user?.email?.endsWith('@wallet.cryopay') ?? false;
+  
   const [recentTx, setRecentTx] = useState<any[]>([]);
   const [blockchainTx, setBlockchainTx] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -177,7 +181,7 @@ const Dashboard = () => {
 
   // Fetch blockchain transactions for MetaMask users
   useEffect(() => {
-    if (!isEthConnected || !user) return;
+    if (!isMetaMaskUser || !isEthConnected || !user) return;
 
     const fetchBlockchainTx = async () => {
       try {
@@ -191,7 +195,7 @@ const Dashboard = () => {
     };
 
     fetchBlockchainTx();
-  }, [isEthConnected, user]);
+  }, [isMetaMaskUser, isEthConnected, user]);
 
   // Fetch balance from blocks
   useEffect(() => {
@@ -373,7 +377,7 @@ const Dashboard = () => {
                 </CardHeader>
                 <CardContent className="relative space-y-3">
                   {/* Show ETH balance for MetaMask users */}
-                  {isEthConnected && ethBalance ? (
+                  {isMetaMaskUser && isEthConnected && ethBalance ? (
                     <>
                       <div className="flex items-baseline gap-3">
                         <span className="text-4xl md:text-5xl font-bold text-white tabular-nums">
@@ -408,7 +412,7 @@ const Dashboard = () => {
                     </>
                   )}
 
-                  {isEthConnected && ethAddress ? (
+                  {isMetaMaskUser && isEthConnected && ethAddress ? (
                     <div className="flex items-center gap-2 pt-1">
                       <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-full">
                         <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
@@ -699,7 +703,7 @@ const Dashboard = () => {
                 </TableHeader>
                 <TableBody>
                   {/* Blockchain transactions for MetaMask users */}
-                  {isEthConnected ? (
+                  {isMetaMaskUser && isEthConnected ? (
                     blockchainTx.length === 0 && !loading ? (
                       <TableRow className="border-white/[0.06] hover:bg-white/[0.02]">
                         <TableCell colSpan={3}>
