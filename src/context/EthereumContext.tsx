@@ -57,6 +57,7 @@ const EthereumContextInner: React.FC<{ children: React.ReactNode }> = ({ childre
   const { signMessageAsync } = useSignMessage();
   const { data: balanceData, refetch: refetchBalance } = useBalance({
     address,
+    chainId, // Explicitly specify chainId to fetch balance from the connected chain (Sepolia)
     query: {
       enabled: !!address,
     },
