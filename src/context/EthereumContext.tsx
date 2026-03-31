@@ -252,14 +252,19 @@ const EthereumContextInner: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [isConnected, address]);
 
   // Auto-prompt to switch to Sepolia if on wrong network
+  // Only for users who have actively connected their wallet
   useEffect(() => {
-    if (isConnected && chainId && chainId !== 11155111) {
+    // Only auto-switch if:
+    // 1. Wallet is connected
+    // 2. chainId is defined and not Sepolia
+    // 3. User has MetaMask (not just a passive check)
+    if (isConnected && address && chainId && chainId !== 11155111) {
       console.log('[EthereumContext] Wrong network detected, prompting switch to Sepolia');
       switchToSepolia().catch(err => {
         console.error('Failed to switch to Sepolia:', err);
       });
     }
-  }, [isConnected, chainId, switchToSepolia]);
+  }, [isConnected, address, chainId, switchToSepolia]);
 
   // Format balance
   const balance = useMemo(() => {
