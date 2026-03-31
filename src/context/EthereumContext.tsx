@@ -22,6 +22,7 @@ interface EthereumContextType {
   connect: () => Promise<void>;
   disconnect: () => void;
   signMessage: (message: string) => Promise<string>;
+  switchToSepolia: () => Promise<void>;
 
   // Status
   isMetaMaskInstalled: boolean;
@@ -103,6 +104,45 @@ const EthereumContextInner: React.FC<{ children: React.ReactNode }> = ({ childre
       throw error;
     }
   }, [connectAsync, connectors, isMetaMaskInstalled]);
+
+  // Switch to Sepolia network
+  const switchToSepolia = useCallback(async (): Promise<void> => {
+    try {
+      setError(null);
+      const ethereum = (window as any).ethereum;
+      if (!ethereum) throw new Error('MetaMask not found');
+
+      const sepoliaChainId = '0xaa36a7'; // 11155111 in hex
+
+      try {
+        // Try to switch to Sepolia
+        await ethereum.request({
+          method: 'wallet_switchEthereumChain',
+          params: [{ chainId: sepoliaChainId }],
+        });
+      } catch (switchError: any) {
+        // If Sepolia is not added, add it
+        if (switchError.code === 4902) {
+          await ethereum.request({
+            method: 'wallet_addEthereumChain',
+            params: [{
+              chainId: sepoliaChainId,
+              chainName: 'Sepolia Testnet',
+              nativeCurrency: { name: 'Sepolia ETH', symbol: 'ETH', decimals: 18 },
+              rpcUrls: ['https://eth-sepolia.g.alchemy.com/v2/demo'],
+              blockExplorerUrls: ['https://sepolia.etherscan.io'],
+            }],
+          });
+        } else {
+          throw switchError;
+        }
+      }
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error('Failed to switch network');
+      setError(error);
+      throw error;
+    }
+  }, []);
 
   // Disconnect wallet
   const disconnect = useCallback(() => {
@@ -211,6 +251,16 @@ const EthereumContextInner: React.FC<{ children: React.ReactNode }> = ({ childre
     checkRegistration();
   }, [isConnected, address]);
 
+  // Auto-prompt to switch to Sepolia if on wrong network
+  useEffect(() => {
+    if (isConnected && chainId && chainId !== 11155111) {
+      console.log('[EthereumContext] Wrong network detected, prompting switch to Sepolia');
+      switchToSepolia().catch(err => {
+        console.error('Failed to switch to Sepolia:', err);
+      });
+    }
+  }, [isConnected, chainId, switchToSepolia]);
+
   // Format balance
   const balance = useMemo(() => {
     if (!balanceData?.value) return undefined;
@@ -239,6 +289,7 @@ const EthereumContextInner: React.FC<{ children: React.ReactNode }> = ({ childre
       connect,
       disconnect,
       signMessage,
+      switchToSepolia,
 
       // Status
       isMetaMaskInstalled,
@@ -260,6 +311,7 @@ const EthereumContextInner: React.FC<{ children: React.ReactNode }> = ({ childre
       connect,
       disconnect,
       signMessage,
+      switchToSepolia,
       isMetaMaskInstalled,
       error,
       clearError,
