@@ -48,9 +48,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const response = await apiFetch('/api/profile');
           if (response.ok && response.data?.profile) {
             const profile = response.data.profile;
+            // Check if this is a MetaMask user (email ends with @wallet.cryopay)
+            const isMetaMaskUser = profile.email?.endsWith('@wallet.cryopay');
             setUser({
               id: profile.id,
-              firstName: profile.first_name || profile.email || 'User',
+              // For MetaMask users without a name, use 'User' instead of the wallet address
+              firstName: profile.first_name || (isMetaMaskUser ? 'User' : profile.email) || 'User',
               lastName: profile.last_name || undefined,
               email: profile.email || undefined,
               phone: profile.phone || null,
@@ -76,9 +79,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const response = await apiFetch('/api/profile');
       if (response.ok && response.data?.profile) {
         const profile = response.data.profile;
+        // Check if this is a MetaMask user (email ends with @wallet.cryopay)
+        const isMetaMaskUser = profile.email?.endsWith('@wallet.cryopay');
         setUser({
           id: profile.id,
-          firstName: profile.first_name || profile.email || 'User',
+          // For MetaMask users without a name, use 'User' instead of the wallet address
+          firstName: profile.first_name || (isMetaMaskUser ? 'User' : profile.email) || 'User',
           lastName: profile.last_name || undefined,
           email: profile.email || undefined,
           phone: profile.phone || null,

@@ -346,7 +346,11 @@ const Dashboard = () => {
             <div>
               <h1 className="text-2xl md:text-3xl font-bold text-white tracking-tight">
                 Welcome back
-                {user?.email ? (
+                {user?.firstName ? (
+                  <span className="text-emerald-400">
+                    , {user.firstName}
+                  </span>
+                ) : user?.email ? (
                   <span className="text-emerald-400">
                     , {user.email.split("@")[0]}
                   </span>
