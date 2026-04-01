@@ -31,6 +31,7 @@ interface TransactionPayload {
   fiatCurrency: string;
   fiatSymbol: string;
   amountFiat: number;
+  amountFiatUSD: number; // USD equivalent for balance calculation
   amountCrypto: number;
   timestamp: string;
   user_id: string;
@@ -196,10 +197,28 @@ const BuySell = () => {
 
   // Reset transaction status when tab changes
   useEffect(() => {
-    setTxStatus('idle');
-    setTxError(null);
-    setTxHash(null);
-  }, []);
+    // Reset state when switching between buy/sell tabs
+    if (activeTab) {
+      setTxStatus('idle');
+      setTxError(null);
+      setTxHash(null);
+    }
+  }, [activeTab]);
+
+  // Helper function to get USD conversion rate
+  const getUSDRate = async (fromCurrency: string): Promise<number> => {
+    if (fromCurrency === 'USD' || fromCurrency === 'USDT') return 1;
+    try {
+      const resp = await fetch(`https://api.exchangerate.host/convert?from=${fromCurrency}&to=USD&amount=1`);
+      if (resp.ok) {
+        const data = await resp.json();
+        return data.result || 1;
+      }
+    } catch (e) {
+      console.warn('Failed to fetch USD rate:', e);
+    }
+    return 1; // Fallback to 1:1
+  };
 
   // pending payload is used when we need to request an unlock key first
   const [unlockOpen, setUnlockOpen] = useState(false);
@@ -227,6 +246,7 @@ const BuySell = () => {
       kind: payload.kind,
       crypto: payload.crypto,
       amountFiat: payload.amountFiat,
+      amountFiatUSD: payload.amountFiatUSD,
       amountCrypto: payload.amountCrypto,
       fiatCurrency: payload.fiatCurrency,
       timestamp: payload.timestamp,
@@ -371,12 +391,10 @@ const BuySell = () => {
            return;
          }
       } else {
-        // Non-ETH crypto - just record in database (no blockchain tx for demo)
-        // Use ETH balance if available for MetaMask users (real blockchain), otherwise fall back to database balance
-        // Convert ETH to USD for comparison
-        const ethBalanceNum = (isMetaMaskUser && ethBalance) ? parseFloat(ethBalance) : 0;
-        const ethBalanceUSD = ethBalanceNum * selectedPrice; // selectedPrice is the current crypto price
-        const currentBalance = ethBalanceUSD > 0 ? ethBalanceUSD : balance;
+        // Non-ETH crypto (BTC, SOL, etc.) - these are tracked in the database, not on-chain
+        // Use database balance for validation
+        const currentBalance = balance; // From AuthContext - calculated from all transactions
+        
         if (currentBalance < fiatAmount) {
           toast.error(`Insufficient balance. You have $${currentBalance.toFixed(2)} available.`, {
             position: 'top-center',
@@ -392,8 +410,15 @@ const BuySell = () => {
       }
     } else {
       // BUY transaction
-      // For buys, we simulate the fiat payment and record the intent
-      // In a real system, this would trigger a fiat payment gateway
+      // In a real system, this would:
+      // 1. Show payment method selection (credit card, bank transfer, etc.)
+      // 2. Process payment via Stripe/PayPal/etc.
+      // 3. After payment confirmation, add crypto to user's balance
+      // For demo: We skip payment processing and directly record the purchase
+      // 
+      // IMPORTANT: When you BUY crypto, you're NOT spending from your CryoPay balance.
+      // You're paying with an external payment method (credit card, etc.).
+      // The transaction adds crypto to your balance, not deducts from it.
       
       if (selectedCrypto.code === 'ETH') {
         // Check wallet connection (need address to receive ETH) - only for MetaMask users
@@ -434,12 +459,17 @@ const BuySell = () => {
       // ignore — optional
     }
 
+    // Convert fiat amount to USD for balance calculations
+    const usdRate = await getUSDRate(selectedCurrency.code);
+    const amountFiatUSD = fiatAmount * usdRate;
+
     return {
       kind: activeTab === 'buy' ? 'buy' : 'sell',
       crypto: selectedCrypto.code,
       fiatCurrency: selectedCurrency.code,
       fiatSymbol: selectedCurrency.symbol,
       amountFiat: fiatAmount,
+      amountFiatUSD: amountFiatUSD,
       amountCrypto: cryptoAmt,
       timestamp: new Date().toISOString(),
       user_id: user!.id,

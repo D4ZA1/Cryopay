@@ -765,6 +765,7 @@ const Contacts = () => {
                     to_thumbprint: recipientThumb,
                     crypto: sendCrypto,
                     amountFiat: parseFloat(sendAmount),
+                    amountFiatUSD: parseFloat(sendAmount), // USD equivalent (P2P is USD-only)
                     amountCrypto,
                     timestamp: new Date().toISOString(),
                     user_id: user.id,
@@ -824,6 +825,7 @@ const Contacts = () => {
                         kind: 'tx';
                         to: string;
                         amountFiat: number;
+                        amountFiatUSD: number;
                         amountCrypto: number;
                         to_user_id?: string;
                         to_thumbprint?: string;
@@ -834,7 +836,8 @@ const Contacts = () => {
                       const public_summary: QuickSendPublicSummary = { 
                         kind: 'tx', 
                         to: sendTarget.address, 
-                        amountFiat: payload.amountFiat, 
+                        amountFiat: payload.amountFiat,
+                        amountFiatUSD: payload.amountFiat, // USD equivalent (P2P is USD-only)
                         amountCrypto: payload.amountCrypto,
                         tx_hash: payload.tx_hash
                       };
@@ -881,6 +884,7 @@ const Contacts = () => {
                         kind: 'tx';
                         to: string;
                         amountFiat: number;
+                        amountFiatUSD: number;
                         amountCrypto: number;
                         to_user_id?: string;
                         to_thumbprint?: string;
@@ -891,7 +895,8 @@ const Contacts = () => {
                       const public_summary: QuickSendPublicSummary = { 
                         kind: 'tx', 
                         to: sendTarget.address, 
-                        amountFiat: payload.amountFiat, 
+                        amountFiat: payload.amountFiat,
+                        amountFiatUSD: payload.amountFiat, // USD equivalent (P2P is USD-only)
                         amountCrypto: payload.amountCrypto,
                         tx_hash: payload.tx_hash
                       };

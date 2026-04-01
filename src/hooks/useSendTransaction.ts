@@ -61,7 +61,9 @@ export function useSendEth() {
       const publicClient = getPublicClient();
       let confirmedReceipt = null;
       let attempts = 0;
-      const maxAttempts = 120; // 2 minutes with 1-second intervals
+      const maxAttempts = 300; // 5 minutes total with exponential backoff
+      
+      console.log(`[Transaction ${txHash}] Starting confirmation polling (max 5 minutes)...`);
 
       while (!confirmedReceipt && attempts < maxAttempts) {
         try {
@@ -70,20 +72,27 @@ export function useSendEth() {
           });
           if (receipt) {
             confirmedReceipt = receipt;
+            console.log(`[Transaction ${txHash}] Confirmed in block ${receipt.blockNumber} after ${attempts + 1} attempts`);
             break;
           }
         } catch (e) {
           // getTransactionReceipt might fail before tx is in a block, that's normal
-          console.debug('Receipt not yet available, retrying...', e);
+          if (attempts % 10 === 0) {
+            console.log(`[Transaction ${txHash}] Polling attempt ${attempts + 1}/${maxAttempts}...`);
+          }
         }
         
-        // Wait 1 second before retrying
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        // Exponential backoff: start at 1s, max at 3s
+        // First 30 attempts: 1s
+        // Next 60 attempts: 2s  
+        // Remaining: 3s
+        const delay = attempts < 30 ? 1000 : attempts < 90 ? 2000 : 3000;
+        await new Promise(resolve => setTimeout(resolve, delay));
         attempts++;
       }
 
       if (!confirmedReceipt) {
-        throw new Error('Transaction confirmation timeout after 2 minutes');
+        throw new Error(`Transaction confirmation timeout after ${attempts} attempts (5 minutes). The transaction may still be pending on the network. Hash: ${txHash}`);
       }
 
       return {

@@ -33,7 +33,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useEthereum } from "@/context/EthereumContext";
 import { useEffect, useState, useCallback, useRef } from "react";
-import { getBlocks, getWallet, getTransactionHistory } from "../lib/api";
+import { getBlocks, getWallet, getTransactionHistory, getProfile } from "../lib/api";
 import { TransactionKind } from "../constants";
 import { motion, AnimatePresence } from "framer-motion";
 import CryptoTicker from "@/components/CryptoTicker";
@@ -213,26 +213,54 @@ const Dashboard = () => {
           );
           setRecentTx(userBlocks.slice(0, 6));
 
+          // Fetch current user's thumbprint for comparison
+          let currentUserThumbprint: string | null = null;
+          try {
+            const profileRes = await getProfile();
+            if (profileRes.ok && profileRes.data?.profile?.public_key) {
+              currentUserThumbprint = profileRes.data.profile.public_key.thumbprint || null;
+            }
+          } catch (e) {
+            // Continue without thumbprint
+          }
+
           // Calculate balance from blocks
           let totalBalance = 0;
           userBlocks.forEach((block: any) => {
             const s = block?.data?.public_summary || {};
-            if (s.amountFiat) {
+            // Use amountFiatUSD if available (USD equivalent), fallback to amountFiat
+            const fiatAmount = s.amountFiatUSD ?? s.amountFiat ?? 0;
+            
+            if (fiatAmount) {
               const kind = s.kind || TransactionKind.TX;
               let amount = 0;
 
               if (kind === TransactionKind.BUY) {
-                amount = -Math.abs(s.amountFiat);
+                // BUY = spending fiat to get crypto (negative)
+                amount = -Math.abs(fiatAmount);
               } else if (kind === TransactionKind.SELL) {
-                amount = Math.abs(s.amountFiat);
+                // SELL = getting fiat for crypto (positive)
+                amount = Math.abs(fiatAmount);
               } else {
+                // P2P transaction - determine direction by checking from_user_id, NOT block.user_id
+                // Check multiple fields to determine if current user is the sender
                 const isSender =
                   s.from_user_id === user?.id ||
-                  block.user_id === user?.id ||
-                  s.from === user?.id;
-                amount = isSender
-                  ? -Math.abs(s.amountFiat)
-                  : Math.abs(s.amountFiat);
+                  s.from === user?.id ||
+                  (s.from_thumbprint && currentUserThumbprint && s.from_thumbprint === currentUserThumbprint);
+                
+                // If not sender, check if we're the receiver
+                const isReceiver =
+                  s.to_user_id === user?.id ||
+                  s.to === user?.id ||
+                  (s.to_thumbprint && currentUserThumbprint && s.to_thumbprint === currentUserThumbprint);
+                
+                if (isSender) {
+                  amount = -Math.abs(fiatAmount);
+                } else if (isReceiver) {
+                  amount = Math.abs(fiatAmount);
+                }
+                // If neither sender nor receiver (shouldn't happen), amount stays 0
               }
 
               totalBalance += amount;

@@ -139,10 +139,12 @@ const Transactions = () => {
           else isSent = false;
         }
 
+        // Use amountFiatUSD if available (USD equivalent), fallback to amountFiat
+        const fiatAmount = ps.amountFiatUSD ?? ps.amountFiat ?? 0;
         let amountUSD = 0;
-        if (kind === 'buy') amountUSD = -Math.abs(ps.amountFiat || 0);
-        else if (kind === 'sell') amountUSD = Math.abs(ps.amountFiat || 0);
-        else amountUSD = isSent ? -Math.abs(ps.amountFiat || 0) : (ps.amountFiat || 0);
+        if (kind === 'buy') amountUSD = -Math.abs(fiatAmount);
+        else if (kind === 'sell') amountUSD = Math.abs(fiatAmount);
+        else amountUSD = isSent ? -Math.abs(fiatAmount) : fiatAmount;
 
         const txType = kind === 'buy' ? 'Buy' : kind === 'sell' ? 'Sell' : (kind === 'tx' ? (isSent ? 'Sent' : 'Received') : kind);
 
