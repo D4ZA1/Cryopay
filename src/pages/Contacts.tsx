@@ -79,6 +79,17 @@ const Contacts = () => {
   const [sendPassword, setSendPassword] = useState('');
   // TODO: Connect to real price feed - currently using Binance API fallback
   const [ethPrice, setEthPrice] = useState<number>(3000);
+  
+  // State for searched profile in Add Contact flow
+  const [searchedProfile, setSearchedProfile] = useState<{
+    id: string;
+    email: string;
+    first_name?: string;
+    last_name?: string;
+    ethereum_address?: string;
+    public_key?: { thumbprint?: string; [key: string]: any } | null;
+  } | null>(null);
+  const [isSearchingProfile, setIsSearchingProfile] = useState(false);
   const { user, balance } = useAuth();
   const { isConnected, balance: ethBalance } = useEthereum();
   const { sendEthAndWait, isSending, isConfirming } = useSendEth();
@@ -87,7 +98,13 @@ const Contacts = () => {
   const isMetaMaskUser = user?.email?.endsWith('@wallet.cryopay') ?? false;
   
   // Toggle for real blockchain transactions - default to true only for MetaMask users
-  const [useBlockchain, setUseBlockchain] = useState(isMetaMaskUser);
+  // Note: Simple account users cannot send blockchain transactions (they have no ETH wallet)
+  const [useBlockchain, setUseBlockchain] = useState(false);
+  
+  // Sync useBlockchain default when user changes (e.g., after login)
+  useEffect(() => {
+    setUseBlockchain(isMetaMaskUser && isConnected);
+  }, [isMetaMaskUser, isConnected]);
 
   // Fetch real ETH price on mount
   useEffect(() => {
@@ -131,6 +148,87 @@ const Contacts = () => {
     return () => { mounted = false; };
   }, [user]);
 
+  // Helper to check if a user is a MetaMask wallet user by email
+  const isMetaMaskEmail = (email: string): boolean => {
+    return email?.endsWith('@wallet.cryopay') ?? false;
+  };
+
+  // Search for a profile by email
+  const handleSearchProfile = async () => {
+    if (!newContact.email) {
+      toast.warning('Enter the user email to search', {
+        position: 'top-center',
+        autoClose: 5000,
+        theme: 'dark',
+        transition: Slide,
+      });
+      return;
+    }
+
+    if (!isValidEmail(newContact.email)) {
+      toast.warning('Please enter a valid email address', {
+        position: 'top-center',
+        autoClose: 5000,
+        theme: 'dark',
+        transition: Slide,
+      });
+      return;
+    }
+
+    setIsSearchingProfile(true);
+    try {
+      const searchRes = await apiFetch(`/api/profile/search?email=${encodeURIComponent(newContact.email)}`);
+      if (!searchRes.ok || !searchRes.data?.profile) {
+        toast.error('No user with that email found in the system', {
+          position: 'top-center',
+          autoClose: 5000,
+          theme: 'dark',
+          transition: Slide,
+        });
+        setSearchedProfile(null);
+        return;
+      }
+      
+      const prof = searchRes.data.profile;
+      setSearchedProfile(prof);
+      
+      // Auto-fill the name if available
+      if (prof.first_name) {
+        setNewContact(prev => ({
+          ...prev,
+          name: `${prof.first_name} ${prof.last_name || ''}`.trim()
+        }));
+      }
+
+      // For MetaMask users, auto-fill the address with ethereum_address
+      if (prof.ethereum_address) {
+        setNewContact(prev => ({
+          ...prev,
+          address: prof.ethereum_address,
+          publicKey: prof.ethereum_address // Use ETH address as the identifier
+        }));
+      }
+      
+      toast.success('User found!', {
+        position: 'top-center',
+        autoClose: 3000,
+        theme: 'dark',
+        transition: Slide,
+      });
+    } catch (err) {
+      console.error('profile search error', err);
+      toast.error('Failed to search for user', {
+        position: 'top-center',
+        autoClose: 5000,
+        theme: 'dark',
+        transition: Slide,
+      });
+      setSearchedProfile(null);
+    } finally {
+      setIsSearchingProfile(false);
+    }
+  };
+
   const handleAddContact = async () => {
     try {
       if (!user) {
@@ -162,83 +260,48 @@ const Contacts = () => {
         });
         return;
       }
+
+      // If we haven't searched for the profile yet, do it now
+      let prof = searchedProfile;
+      if (!prof || prof.email !== newContact.email) {
+        const searchRes = await apiFetch(`/api/profile/search?email=${encodeURIComponent(newContact.email)}`);
+        if (!searchRes.ok || !searchRes.data?.profile) {
+          toast.error('No user with that email found in the system', {
+            position: 'top-center',
+            autoClose: 5000,
+            theme: 'dark',
+            transition: Slide,
+          });
+          return;
+        }
+        prof = searchRes.data.profile;
+      }
+
+      // Ensure prof is not null at this point
+      if (!prof) {
+        toast.error('Profile not found', {
+          position: 'top-center',
+          autoClose: 5000,
+          theme: 'dark',
+          transition: Slide,
+        });
+        return;
+      }
+
+      // Determine if the profile is a MetaMask user
+      const isMetaMaskProfile = isMetaMaskEmail(prof.email) && !!prof.ethereum_address;
       
-      if (!newContact.publicKey) {
-        toast.warning('Enter the receiver public key', {
-          position: 'top-center',
-          autoClose: 5000,
-          theme: 'dark',
-          transition: Slide,
-        });
-        return;
-      }
-
-      // Verify that a profile with this email exists by calling the profile search endpoint
-      const searchRes = await apiFetch(`/api/profile/search?email=${encodeURIComponent(newContact.email)}`);
-      if (!searchRes.ok || !searchRes.data?.profile) {
-        toast.error('No user with that email found in the system', {
-          position: 'top-center',
-          autoClose: 5000,
-          theme: 'dark',
-          transition: Slide,
-        });
-        return;
-      }
-      const prof = searchRes.data.profile;
-
-      // Minimal public key check (best-effort)
-      let walletMatches = true;
-      try {
-        const supplied = newContact.publicKey.trim();
-        const profThumb = prof?.public_key?.thumbprint;
-        const looksLikeThumb = /^[0-9a-fA-F]{32,64}$/.test(supplied);
-        if (profThumb && looksLikeThumb) {
-          walletMatches = profThumb === supplied;
-        }
-      } catch (e) {
-        // ignore
-      }
-
-      if (!walletMatches) {
-        toast.error('Provided public key does not match the stored public key for that user', {
-          position: 'top-center',
-          autoClose: 5000,
-          theme: 'dark',
-          transition: Slide,
-        });
-        return;
-      }
-
-      const displayName = prof.first_name ? `${prof.first_name} ${prof.last_name || ''}`.trim() : newContact.name || prof.email;
-
-      // Safely parse public key JSON; if it's not valid JSON, store as { raw: '<value>' }
+      let contactAddress: string;
       let publicKeyVal: JWK | { raw: string } | null = null;
-      if (newContact.publicKey) {
-        try {
-          // Attempt to parse if it looks like JSON
-          const trimmed = newContact.publicKey.trim();
-          if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
-            publicKeyVal = JSON.parse(trimmed) as JWK;
-          } else {
-            // treat as a plain string/thumbprint
-            publicKeyVal = { raw: newContact.publicKey };
-          }
-        } catch (e) {
-          publicKeyVal = { raw: newContact.publicKey };
-        }
-      }
 
-       const response = await createContact({
-         name: displayName,
-         address: newContact.address || newContact.publicKey,
-         email: prof.email,
-         label: newContact.label || undefined,
-         public_key: JSON.stringify(publicKeyVal),
-       });
-
-        if (!response.ok) {
-          console.error('contacts insert failed', response.error);
-          toast.error('Failed to add contact: ' + getErrorMessage(response.error), {
+      if (isMetaMaskProfile) {
+        // MetaMask user: use ethereum_address as the contact's address
+        contactAddress = prof.ethereum_address!;
+        publicKeyVal = { raw: prof.ethereum_address! };
+      } else {
+        // Simple account user: validate thumbprint
+        if (!newContact.publicKey) {
+          toast.warning('Enter the receiver thumbprint for verification', {
             position: 'top-center',
             autoClose: 5000,
             theme: 'dark',
@@ -247,9 +310,74 @@ const Contacts = () => {
           return;
         }
 
+        // Validate thumbprint matches
+        const supplied = newContact.publicKey.trim();
+        const profThumb = prof?.public_key?.thumbprint;
+        
+        if (profThumb) {
+          const looksLikeThumb = /^[0-9a-fA-F]{32,64}$/.test(supplied);
+          if (looksLikeThumb && profThumb !== supplied) {
+            toast.error('Provided thumbprint does not match the stored public key for that user', {
+              position: 'top-center',
+              autoClose: 5000,
+              theme: 'dark',
+              transition: Slide,
+            });
+            return;
+          }
+        }
+
+        // Use thumbprint as the address for simple accounts
+        contactAddress = profThumb || newContact.publicKey;
+
+        // Parse public key if it looks like JSON, otherwise store as raw
+        try {
+          const trimmed = newContact.publicKey.trim();
+          if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+            publicKeyVal = JSON.parse(trimmed) as JWK;
+          } else {
+            publicKeyVal = { raw: newContact.publicKey };
+          }
+        } catch (e) {
+          publicKeyVal = { raw: newContact.publicKey };
+        }
+      }
+
+      const displayName = prof.first_name 
+        ? `${prof.first_name} ${prof.last_name || ''}`.trim() 
+        : newContact.name || prof.email;
+
+      const response = await createContact({
+        name: displayName,
+        address: contactAddress,
+        email: prof.email,
+        label: newContact.label || undefined,
+        public_key: JSON.stringify(publicKeyVal),
+        contact_user_id: prof.id,
+      });
+
+      if (!response.ok) {
+        console.error('contacts insert failed', response.error);
+        toast.error('Failed to add contact: ' + getErrorMessage(response.error), {
+          position: 'top-center',
+          autoClose: 5000,
+          theme: 'dark',
+          transition: Slide,
+        });
+        return;
+      }
+
       setContacts([...(contacts || []), response.data?.contact]);
       setNewContact({ name: '', address: '', email: '', label: '', publicKey: '' });
+      setSearchedProfile(null);
       setIsAddModalOpen(false);
+      
+      toast.success('Contact added successfully!', {
+        position: 'top-center',
+        autoClose: 3000,
+        theme: 'dark',
+        transition: Slide,
+      });
     } catch (err) {
       console.error('add contact unexpected error', err);
       toast.error('Failed to add contact', {
@@ -394,7 +522,7 @@ const Contacts = () => {
                         <Send className="h-3 w-3 mr-1" />
                         Send
                       </Button>
-                      <Button size="sm" className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white border-0" onClick={() => { setSendTarget(contact); setSendAmount(''); setSendCrypto('ETH'); setSendPassword(''); setIsSendModalOpen(true); }}>
+                      <Button size="sm" className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white border-0" onClick={() => { setSendTarget(contact); setSendAmount(''); setSendCrypto('ETH'); setSendPassword(''); setUseBlockchain(isMetaMaskUser && isConnected); setIsSendModalOpen(true); }}>
                         <Send className="h-3 w-3 mr-1" />
                         Quick Send
                       </Button>
@@ -424,34 +552,45 @@ const Contacts = () => {
           <DialogHeader>
             <DialogTitle className="text-white">Send to Contact</DialogTitle>
             <DialogDescription className="text-slate-400">
-              {useBlockchain 
-                ? 'Send real ETH via MetaMask (on-chain transaction)' 
-                : 'Save transaction record locally (database only)'}
+              {isMetaMaskUser 
+                ? (useBlockchain 
+                    ? 'Send real ETH via MetaMask (on-chain transaction)' 
+                    : 'Off-chain transaction (encrypted database record)')
+                : 'Encrypted off-chain transaction (Simple Account mode)'}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            {/* Transaction Mode Toggle */}
-            <div className="flex items-center justify-between p-3 bg-slate-800/30 rounded-lg border border-white/[0.06]">
-              <div className="flex flex-col">
-                <span className="text-sm font-medium text-white">Blockchain Transaction</span>
-                <span className="text-xs text-slate-400">
-                  {useBlockchain ? 'Real ETH transfer (shows in MetaMask)' : 'Demo mode (database only)'}
-                </span>
+            {/* Transaction Mode Toggle - Only show for MetaMask users who can send blockchain tx */}
+            {isMetaMaskUser ? (
+              <div className="flex items-center justify-between p-3 bg-slate-800/30 rounded-lg border border-white/[0.06]">
+                <div className="flex flex-col">
+                  <span className="text-sm font-medium text-white">Blockchain Transaction</span>
+                  <span className="text-xs text-slate-400">
+                    {useBlockchain ? 'Real ETH transfer (shows in MetaMask)' : 'Off-chain mode (database only)'}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setUseBlockchain(!useBlockchain)}
+                  disabled={!isConnected}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    useBlockchain ? 'bg-emerald-500' : 'bg-slate-600'
+                  } ${!isConnected ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      useBlockchain ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={() => setUseBlockchain(!useBlockchain)}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                  useBlockchain ? 'bg-emerald-500' : 'bg-slate-600'
-                }`}
-              >
-                <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                    useBlockchain ? 'translate-x-6' : 'translate-x-1'
-                  }`}
-                />
-              </button>
-            </div>
+            ) : (
+              <div className="p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+                <p className="text-xs text-blue-300">
+                  Off-chain transaction mode. Simple accounts use encrypted database records.
+                </p>
+              </div>
+            )}
             
             {/* Warning for non-ETH addresses in blockchain mode */}
             {useBlockchain && sendTarget?.address && !/^0x[a-fA-F0-9]{40}$/.test(sendTarget.address) && (
@@ -528,6 +667,19 @@ const Contacts = () => {
                    // Check if recipient has a valid Ethereum address for blockchain transactions
                    const isValidEthAddress = sendTarget.address && /^0x[a-fA-F0-9]{40}$/.test(sendTarget.address);
                    
+                   // If blockchain is enabled but sender is not a MetaMask user, show error
+                   // This is a safety check - the toggle should already be hidden for simple accounts
+                   if (useBlockchain && !isMetaMaskUser) {
+                     toast.error('Blockchain transactions require a MetaMask wallet. Please use off-chain mode.', {
+                       position: 'top-center',
+                       autoClose: 5000,
+                       theme: 'dark',
+                       transition: Slide,
+                     });
+                     setUseBlockchain(false);
+                     return;
+                   }
+                   
                    // If blockchain is enabled but recipient doesn't have a valid ETH address, show error
                    if (useBlockchain && !isValidEthAddress) {
                      toast.error('Recipient does not have an Ethereum address. Please disable blockchain mode to send via off-chain transaction.', {
@@ -550,11 +702,17 @@ const Contacts = () => {
                      return;
                    }
 
-                    // Check balance - use blockchain balance if MetaMask user and connected, otherwise database balance
-                    const ethBalanceNum = (isMetaMaskUser && ethBalance) ? parseFloat(ethBalance) : 0;
-                    // Convert ETH to USD for comparison (ethPrice is fetched from Binance API)
-                    const ethBalanceUSD = ethBalanceNum * ethPrice;
-                    const currentBalance = ethBalanceUSD > 0 ? ethBalanceUSD : balance;
+                    // Check balance based on user type and transaction mode
+                    let currentBalance: number;
+                    if (useBlockchain && isMetaMaskUser && isConnected) {
+                      // Blockchain mode: use ETH balance converted to USD
+                      const ethBalanceNum = ethBalance ? parseFloat(ethBalance) : 0;
+                      currentBalance = ethBalanceNum * ethPrice;
+                    } else {
+                      // Off-chain mode or simple account: use database balance
+                      currentBalance = balance;
+                    }
+                    
                    if (currentBalance < Number(sendAmount)) {
                      toast.error(`Insufficient balance. You have $${currentBalance.toFixed(2)} available.`, {
                        position: 'top-center',
@@ -802,56 +960,117 @@ const Contacts = () => {
       </Dialog>
 
       {/* Add Contact Modal */}
-      <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
+      <Dialog open={isAddModalOpen} onOpenChange={(open: boolean) => {
+        setIsAddModalOpen(open);
+        if (!open) {
+          setSearchedProfile(null);
+          setNewContact({ name: '', address: '', email: '', label: '', publicKey: '' });
+        }
+      }}>
         <DialogContent className="sm:max-w-md bg-slate-900/95 backdrop-blur-xl border-white/[0.06]">
           <DialogHeader>
             <DialogTitle className="text-white">Add New Contact</DialogTitle>
             <DialogDescription className="text-slate-400">
-              Save a frequently used address for quick transactions
+              Search for a user by email to add them as a contact
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
+            {/* Email Search Field */}
             <div className="space-y-2">
-              <Label htmlFor="contact-name" className="text-slate-400">Name *</Label>
+              <Label htmlFor="contact-email" className="text-slate-400">Email *</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="contact-email"
+                  type="email"
+                  placeholder="user@example.com"
+                  value={newContact.email}
+                  onChange={(e) => {
+                    setNewContact({...newContact, email: e.target.value});
+                    // Clear searched profile if email changes
+                    if (searchedProfile && searchedProfile.email !== e.target.value) {
+                      setSearchedProfile(null);
+                    }
+                  }}
+                  className="flex-1 bg-slate-800/50 border-white/[0.06] text-white placeholder:text-slate-500"
+                />
+                <Button 
+                  onClick={handleSearchProfile} 
+                  disabled={isSearchingProfile}
+                  className="bg-blue-500 hover:bg-blue-600 text-white border-0"
+                >
+                  {isSearchingProfile ? 'Searching...' : 'Find User'}
+                </Button>
+              </div>
+            </div>
+
+            {/* Show searched profile info */}
+            {searchedProfile && (
+              <div className="p-3 bg-slate-800/30 rounded-lg border border-white/[0.06] space-y-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 font-semibold text-sm">
+                    {getInitials(searchedProfile.first_name ? `${searchedProfile.first_name} ${searchedProfile.last_name || ''}` : searchedProfile.email)}
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-white">
+                      {searchedProfile.first_name ? `${searchedProfile.first_name} ${searchedProfile.last_name || ''}` : searchedProfile.email}
+                    </p>
+                    <p className="text-xs text-slate-400">{searchedProfile.email}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className={`inline-block px-2 py-0.5 text-xs font-semibold rounded-full ${
+                    searchedProfile.ethereum_address 
+                      ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30' 
+                      : 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
+                  }`}>
+                    {searchedProfile.ethereum_address ? 'MetaMask Wallet' : 'Simple Account'}
+                  </span>
+                </div>
+                {searchedProfile.ethereum_address && (
+                  <p className="text-xs text-slate-400 break-all">
+                    ETH Address: {searchedProfile.ethereum_address}
+                  </p>
+                )}
+                {searchedProfile.public_key?.thumbprint && !searchedProfile.ethereum_address && (
+                  <p className="text-xs text-slate-400 break-all">
+                    Thumbprint: {searchedProfile.public_key.thumbprint}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Name field - auto-filled if profile found */}
+            <div className="space-y-2">
+              <Label htmlFor="contact-name" className="text-slate-400">Name</Label>
               <Input
                 id="contact-name"
-                placeholder="John Doe"
+                placeholder="Contact name (auto-filled if found)"
                 value={newContact.name}
                 onChange={(e) => setNewContact({...newContact, name: e.target.value})}
                 className="bg-slate-800/50 border-white/[0.06] text-white placeholder:text-slate-500"
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="contact-address" className="text-slate-400">Wallet Address *</Label>
-              <Input
-                id="contact-address"
-                placeholder="0x..."
-                value={newContact.address}
-                onChange={(e) => setNewContact({...newContact, address: e.target.value})}
-                className="bg-slate-800/50 border-white/[0.06] text-white placeholder:text-slate-500"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="contact-public-key" className="text-slate-400">Public Key / Thumbprint *</Label>
-              <Input
-                id="contact-public-key"
-                placeholder="Enter public key JSON or thumbprint"
-                value={newContact.publicKey}
-                onChange={(e) => setNewContact({...newContact, publicKey: e.target.value})}
-                className="bg-slate-800/50 border-white/[0.06] text-white placeholder:text-slate-500"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="contact-email" className="text-slate-400">Email (Optional)</Label>
-              <Input
-                id="contact-email"
-                type="email"
-                placeholder="john@example.com"
-                value={newContact.email}
-                onChange={(e) => setNewContact({...newContact, email: e.target.value})}
-                className="bg-slate-800/50 border-white/[0.06] text-white placeholder:text-slate-500"
-              />
-            </div>
+
+            {/* Show public key/thumbprint field only for simple accounts */}
+            {searchedProfile && !searchedProfile.ethereum_address && (
+              <div className="space-y-2">
+                <Label htmlFor="contact-public-key" className="text-slate-400">
+                  Verify Thumbprint *
+                </Label>
+                <Input
+                  id="contact-public-key"
+                  placeholder="Enter thumbprint to verify identity"
+                  value={newContact.publicKey}
+                  onChange={(e) => setNewContact({...newContact, publicKey: e.target.value})}
+                  className="bg-slate-800/50 border-white/[0.06] text-white placeholder:text-slate-500"
+                />
+                <p className="text-xs text-slate-500">
+                  Ask the user for their public key thumbprint to verify their identity
+                </p>
+              </div>
+            )}
+
+            {/* Label selector */}
             <div className="space-y-2">
               <Label htmlFor="contact-label" className="text-slate-400">Label</Label>
               <select
@@ -867,8 +1086,13 @@ const Contacts = () => {
                 <option value="Colleague">Colleague</option>
               </select>
             </div>
+
             <div className="flex gap-2 pt-4">
-              <Button onClick={handleAddContact} className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white border-0">
+              <Button 
+                onClick={handleAddContact} 
+                disabled={!searchedProfile}
+                className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white border-0 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
                 Add Contact
               </Button>
               <Button variant="outline" onClick={() => setIsAddModalOpen(false)} className="bg-white/[0.06] border-white/[0.06] text-slate-400 hover:bg-white/[0.08]">

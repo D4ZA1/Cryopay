@@ -295,8 +295,11 @@ const Dashboard = () => {
 
   // Handle copy address
   const copyAddress = async () => {
-    if (walletAddress) {
-      await navigator.clipboard.writeText(walletAddress);
+    const addressToCopy = isMetaMaskUser && isEthConnected && ethAddress 
+      ? ethAddress 
+      : walletAddress;
+    if (addressToCopy) {
+      await navigator.clipboard.writeText(addressToCopy);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
@@ -309,7 +312,12 @@ const Dashboard = () => {
 
   // Handle receive button click - show wallet address
   const handleReceive = () => {
-    if (walletAddress) {
+    // MetaMask users can show modal if they have ethAddress, simple accounts need walletAddress
+    const hasValidAddress = isMetaMaskUser 
+      ? (isEthConnected && ethAddress) 
+      : walletAddress;
+    
+    if (hasValidAddress) {
       setShowReceiveModal(true);
     } else {
       toast.error("No wallet address found. Please set up your wallet first.", {
@@ -918,10 +926,14 @@ const Dashboard = () => {
           <div className="space-y-4">
             <div className="p-4 bg-white/[0.04] border border-white/[0.06] rounded-xl break-all">
               <p className="text-xs text-slate-500 mb-2 uppercase tracking-wider font-medium">
-                Your Wallet Address
+                {isMetaMaskUser && isEthConnected && ethAddress 
+                  ? "Your Ethereum Address" 
+                  : "Your Public Key"}
               </p>
               <p className="font-mono text-sm text-white">
-                {walletAddress || "No wallet address found"}
+                {isMetaMaskUser && isEthConnected && ethAddress
+                  ? ethAddress
+                  : (walletAddress || "No wallet address found")}
               </p>
             </div>
             <div className="flex gap-3">

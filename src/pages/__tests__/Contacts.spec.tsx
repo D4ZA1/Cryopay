@@ -128,8 +128,8 @@ describe('Email Validation', () => {
     localStorage.clear();
   });
 
-  it('should accept valid email format', async () => {
-    // Mock apiFetch to return a profile for valid email
+  it('should search for profile when Find User is clicked with valid email', async () => {
+    // Mock apiFetch to return a profile for valid email (simple account)
     vi.mocked(api.apiFetch).mockResolvedValueOnce({
       ok: true,
       data: { 
@@ -138,13 +138,9 @@ describe('Email Validation', () => {
           email: 'valid@example.com', 
           first_name: 'Valid', 
           last_name: 'User',
-          public_key: { thumbprint: 'abc123' }
+          public_key: { thumbprint: 'abc123def456' }
         } 
       }
-    });
-    vi.mocked(api.createContact).mockResolvedValueOnce({
-      ok: true,
-      data: { contact: { id: 1, name: 'Valid User', address: 'abc123', email: 'valid@example.com' } }
     });
 
     renderWithProviders(<Contacts />);
@@ -159,24 +155,12 @@ describe('Email Validation', () => {
       expect(screen.getByText(/Add New Contact/i)).toBeInTheDocument();
     });
 
-    // Fill in the form with valid email
-    const nameInput = screen.getByPlaceholderText('John Doe');
-    const addressInput = screen.getByPlaceholderText('0x...');
-    const publicKeyInput = screen.getByPlaceholderText('Enter public key JSON or thumbprint');
-    const emailInput = screen.getByPlaceholderText('john@example.com');
-    
-    typeIntoInput(nameInput, 'Test Contact');
-    typeIntoInput(addressInput, '0x123abc');
-    typeIntoInput(publicKeyInput, 'abc123');
+    // Fill in the email and click Find User
+    const emailInput = screen.getByPlaceholderText('user@example.com');
     typeIntoInput(emailInput, 'valid@example.com');
     
-    // Find and click the Add Contact button in the modal
-    const addButtons = screen.getAllByRole('button', { name: /Add Contact/i });
-    const modalAddButton = addButtons.find(btn => btn.closest('[role="dialog"]'));
-    
-    if (modalAddButton) {
-      fireEvent.click(modalAddButton);
-    }
+    const findUserButton = screen.getByRole('button', { name: /Find User/i });
+    fireEvent.click(findUserButton);
 
     // Verify apiFetch was called with the email for profile search
     await waitFor(() => {
@@ -184,11 +168,56 @@ describe('Email Validation', () => {
         expect.stringContaining('/api/profile/search?email=valid%40example.com')
       );
     });
+
+    // Verify profile info is displayed
+    await waitFor(() => {
+      expect(screen.getByText('Valid User')).toBeInTheDocument();
+      expect(screen.getByText('Simple Account')).toBeInTheDocument();
+    });
   });
 
-  it('should reject invalid email format', async () => {
-    const alertMock = vi.spyOn(window, 'alert').mockImplementation(() => {});
+  it('should auto-fill for MetaMask users', async () => {
+    // Mock apiFetch to return a MetaMask profile
+    vi.mocked(api.apiFetch).mockResolvedValueOnce({
+      ok: true,
+      data: { 
+        profile: { 
+          id: '3', 
+          email: 'wallet@wallet.cryopay', 
+          first_name: 'Wallet', 
+          last_name: 'User',
+          ethereum_address: '0x1234567890abcdef1234567890abcdef12345678'
+        } 
+      }
+    });
 
+    renderWithProviders(<Contacts />);
+    
+    // Open add contact modal
+    await waitFor(() => {
+      const addButton = screen.getByText(/Add Contact/);
+      fireEvent.click(addButton);
+    });
+    
+    await waitFor(() => {
+      expect(screen.getByText(/Add New Contact/i)).toBeInTheDocument();
+    });
+
+    // Fill in the email and click Find User
+    const emailInput = screen.getByPlaceholderText('user@example.com');
+    typeIntoInput(emailInput, 'wallet@wallet.cryopay');
+    
+    const findUserButton = screen.getByRole('button', { name: /Find User/i });
+    fireEvent.click(findUserButton);
+
+    // Verify MetaMask user is detected
+    await waitFor(() => {
+      expect(screen.getByText('MetaMask Wallet')).toBeInTheDocument();
+      expect(screen.getByText(/0x1234567890abcdef/i)).toBeInTheDocument();
+    });
+  });
+
+  it('should reject invalid email format when clicking Find User', async () => {
     renderWithProviders(<Contacts />);
     
     // Open add contact modal
@@ -202,35 +231,19 @@ describe('Email Validation', () => {
     });
 
     // Fill in the form with invalid email
-    const nameInput = screen.getByPlaceholderText('John Doe');
-    const addressInput = screen.getByPlaceholderText('0x...');
-    const publicKeyInput = screen.getByPlaceholderText('Enter public key JSON or thumbprint');
-    const emailInput = screen.getByPlaceholderText('john@example.com');
-    
-    typeIntoInput(nameInput, 'Test Contact');
-    typeIntoInput(addressInput, '0x123abc');
-    typeIntoInput(publicKeyInput, 'abc123');
+    const emailInput = screen.getByPlaceholderText('user@example.com');
     typeIntoInput(emailInput, 'invalid-email-format');
     
-    // Find and click the Add Contact button in the modal
-    const addButtons = screen.getAllByRole('button', { name: /Add Contact/i });
-    const modalAddButton = addButtons.find(btn => btn.closest('[role="dialog"]'));
-    
-    if (modalAddButton) {
-      fireEvent.click(modalAddButton);
-    }
+    const findUserButton = screen.getByRole('button', { name: /Find User/i });
+    fireEvent.click(findUserButton);
 
-    // Verify alert was shown for invalid email
+    // apiFetch should NOT be called for invalid email
     await waitFor(() => {
-      expect(alertMock).toHaveBeenCalledWith('Please enter a valid email address');
+      expect(api.apiFetch).not.toHaveBeenCalled();
     });
-
-    alertMock.mockRestore();
   });
 
-  it('should allow empty email (optional field)', async () => {
-    const alertMock = vi.spyOn(window, 'alert').mockImplementation(() => {});
-
+  it('should require email to be filled before clicking Find User', async () => {
     renderWithProviders(<Contacts />);
     
     // Open add contact modal
@@ -243,30 +256,14 @@ describe('Email Validation', () => {
       expect(screen.getByText(/Add New Contact/i)).toBeInTheDocument();
     });
 
-    // Fill in the form without email
-    const nameInput = screen.getByPlaceholderText('John Doe');
-    const addressInput = screen.getByPlaceholderText('0x...');
-    const publicKeyInput = screen.getByPlaceholderText('Enter public key JSON or thumbprint');
-    
-    typeIntoInput(nameInput, 'Test Contact');
-    typeIntoInput(addressInput, '0x123abc');
-    typeIntoInput(publicKeyInput, 'abc123');
-    // Leave email empty
-    
-    // Find and click the Add Contact button in the modal
-    const addButtons = screen.getAllByRole('button', { name: /Add Contact/i });
-    const modalAddButton = addButtons.find(btn => btn.closest('[role="dialog"]'));
-    
-    if (modalAddButton) {
-      fireEvent.click(modalAddButton);
-    }
+    // Click Find User without entering email
+    const findUserButton = screen.getByRole('button', { name: /Find User/i });
+    fireEvent.click(findUserButton);
 
-    // Since email is required in handleAddContact, it should alert about email
+    // apiFetch should NOT be called without email
     await waitFor(() => {
-      expect(alertMock).toHaveBeenCalledWith('Enter the user email to verify');
+      expect(api.apiFetch).not.toHaveBeenCalled();
     });
-
-    alertMock.mockRestore();
   });
 });
 
@@ -373,8 +370,20 @@ describe('Contact Form Validation', () => {
     localStorage.clear();
   });
 
-  it('should require name field', async () => {
-    const alertMock = vi.spyOn(window, 'alert').mockImplementation(() => {});
+  it('should show profile info after finding a user', async () => {
+    // Mock apiFetch to return a profile
+    vi.mocked(api.apiFetch).mockResolvedValueOnce({
+      ok: true,
+      data: { 
+        profile: { 
+          id: '2', 
+          email: 'test@example.com', 
+          first_name: 'Test', 
+          last_name: 'User',
+          public_key: { thumbprint: 'abc123def456789012345678901234567890' }
+        } 
+      }
+    });
 
     renderWithProviders(<Contacts />);
     
@@ -388,110 +397,120 @@ describe('Contact Form Validation', () => {
       expect(screen.getByText(/Add New Contact/i)).toBeInTheDocument();
     });
 
-    // Verify name field has proper label
-    expect(screen.getByLabelText(/Name \*/i)).toBeInTheDocument();
-
-    // Fill only email and public key, leave name empty
-    const emailInput = screen.getByPlaceholderText('john@example.com');
-    const publicKeyInput = screen.getByPlaceholderText('Enter public key JSON or thumbprint');
-    
+    // Enter email and search
+    const emailInput = screen.getByPlaceholderText('user@example.com');
     typeIntoInput(emailInput, 'test@example.com');
-    typeIntoInput(publicKeyInput, 'abc123');
     
-    // Try to submit
+    const findUserButton = screen.getByRole('button', { name: /Find User/i });
+    fireEvent.click(findUserButton);
+
+    // Verify profile is shown
+    await waitFor(() => {
+      expect(screen.getByText('Test User')).toBeInTheDocument();
+      expect(screen.getByText('Simple Account')).toBeInTheDocument();
+    });
+
+    // Verify thumbprint verification field appears for simple accounts
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText('Enter thumbprint to verify identity')).toBeInTheDocument();
+    });
+  });
+
+  it('should NOT show thumbprint field for MetaMask users', async () => {
+    // Mock apiFetch to return a MetaMask profile
+    vi.mocked(api.apiFetch).mockResolvedValueOnce({
+      ok: true,
+      data: { 
+        profile: { 
+          id: '3', 
+          email: 'metamask@wallet.cryopay', 
+          first_name: 'MetaMask', 
+          last_name: 'User',
+          ethereum_address: '0x1234567890abcdef1234567890abcdef12345678'
+        } 
+      }
+    });
+
+    renderWithProviders(<Contacts />);
+    
+    // Open add contact modal
+    await waitFor(() => {
+      const addButton = screen.getByText(/Add Contact/);
+      fireEvent.click(addButton);
+    });
+    
+    await waitFor(() => {
+      expect(screen.getByText(/Add New Contact/i)).toBeInTheDocument();
+    });
+
+    // Enter email and search
+    const emailInput = screen.getByPlaceholderText('user@example.com');
+    typeIntoInput(emailInput, 'metamask@wallet.cryopay');
+    
+    const findUserButton = screen.getByRole('button', { name: /Find User/i });
+    fireEvent.click(findUserButton);
+
+    // Verify MetaMask user is detected
+    await waitFor(() => {
+      expect(screen.getByText('MetaMask Wallet')).toBeInTheDocument();
+    });
+
+    // Verify thumbprint field does NOT appear for MetaMask users
+    expect(screen.queryByPlaceholderText('Enter thumbprint to verify identity')).not.toBeInTheDocument();
+  });
+
+  it('should show error when user not found', async () => {
+    // Mock apiFetch to return no profile
+    vi.mocked(api.apiFetch).mockResolvedValueOnce({
+      ok: false,
+      data: null
+    });
+
+    renderWithProviders(<Contacts />);
+    
+    // Open add contact modal
+    await waitFor(() => {
+      const addButton = screen.getByText(/Add Contact/);
+      fireEvent.click(addButton);
+    });
+    
+    await waitFor(() => {
+      expect(screen.getByText(/Add New Contact/i)).toBeInTheDocument();
+    });
+
+    // Enter email and search
+    const emailInput = screen.getByPlaceholderText('user@example.com');
+    typeIntoInput(emailInput, 'nonexistent@example.com');
+    
+    const findUserButton = screen.getByRole('button', { name: /Find User/i });
+    fireEvent.click(findUserButton);
+
+    // Verify apiFetch was called
+    await waitFor(() => {
+      expect(api.apiFetch).toHaveBeenCalledWith(
+        expect.stringContaining('/api/profile/search?email=nonexistent%40example.com')
+      );
+    });
+  });
+
+  it('should disable Add Contact button until profile is found', async () => {
+    renderWithProviders(<Contacts />);
+    
+    // Open add contact modal
+    await waitFor(() => {
+      const addButton = screen.getByText(/Add Contact/);
+      fireEvent.click(addButton);
+    });
+    
+    await waitFor(() => {
+      expect(screen.getByText(/Add New Contact/i)).toBeInTheDocument();
+    });
+
+    // Find Add Contact button in modal and verify it's disabled
     const addButtons = screen.getAllByRole('button', { name: /Add Contact/i });
     const modalAddButton = addButtons.find(btn => btn.closest('[role="dialog"]'));
     
-    if (modalAddButton) {
-      fireEvent.click(modalAddButton);
-    }
-
-    // The component requires email first, then validates format, then checks publicKey
-    // Since we provided email and publicKey, it will proceed to profile search
-    // Name is derived from profile if found, so the validation is indirect
-
-    alertMock.mockRestore();
-  });
-
-  it('should require address field', async () => {
-    renderWithProviders(<Contacts />);
-    
-    // Open add contact modal
-    await waitFor(() => {
-      const addButton = screen.getByText(/Add Contact/);
-      fireEvent.click(addButton);
-    });
-    
-    await waitFor(() => {
-      expect(screen.getByText(/Add New Contact/i)).toBeInTheDocument();
-    });
-
-    // Verify address field exists with proper label
-    const addressInput = screen.getByLabelText(/Wallet Address \*/i);
-    expect(addressInput).toBeInTheDocument();
-    expect(addressInput).toHaveAttribute('placeholder', '0x...');
-
-    // Address is used as fallback from publicKey if not provided
-    // The component uses: address: newContact.address || newContact.publicKey
-    const nameInput = screen.getByPlaceholderText('John Doe');
-    const publicKeyInput = screen.getByPlaceholderText('Enter public key JSON or thumbprint');
-    const emailInput = screen.getByPlaceholderText('john@example.com');
-
-    typeIntoInput(nameInput, 'Test');
-    typeIntoInput(emailInput, 'test@example.com');
-    typeIntoInput(publicKeyInput, 'abc123');
-    // Leave address empty - publicKey will be used as fallback
-
-    // Verify inputs are accessible
-    expect(nameInput).toHaveValue('Test');
-    expect(addressInput).toHaveValue('');
-  });
-
-  it('should show error for invalid email format', async () => {
-    const alertMock = vi.spyOn(window, 'alert').mockImplementation(() => {});
-
-    renderWithProviders(<Contacts />);
-    
-    // Open add contact modal
-    await waitFor(() => {
-      const addButton = screen.getByText(/Add Contact/);
-      fireEvent.click(addButton);
-    });
-    
-    await waitFor(() => {
-      expect(screen.getByText(/Add New Contact/i)).toBeInTheDocument();
-    });
-
-    // Fill in form with invalid email formats
-    const emailInput = screen.getByPlaceholderText('john@example.com');
-    const publicKeyInput = screen.getByPlaceholderText('Enter public key JSON or thumbprint');
-    
-    typeIntoInput(publicKeyInput, 'abc123');
-    
-    // Test various invalid email formats
-    const invalidEmails = [
-      'notanemail',
-      '@nodomain.com', 
-      'no@domain',
-      'spaces in@email.com',
-      'double@@at.com'
-    ];
-
-    for (const invalidEmail of invalidEmails) {
-      typeIntoInput(emailInput, invalidEmail);
-      
-      const addButtons = screen.getAllByRole('button', { name: /Add Contact/i });
-      const modalAddButton = addButtons.find(btn => btn.closest('[role="dialog"]'));
-      
-      if (modalAddButton) {
-        fireEvent.click(modalAddButton);
-      }
-    }
-
-    // Verify alert was called for invalid email
-    expect(alertMock).toHaveBeenCalledWith('Please enter a valid email address');
-
-    alertMock.mockRestore();
+    expect(modalAddButton).toBeDisabled();
   });
 });
 

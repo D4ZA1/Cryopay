@@ -131,7 +131,7 @@ export async function getContact(id: number) {
   return apiFetch(`/api/contacts/${id}`);
 }
 
-export async function createContact(data: { name: string; address: string; email?: string; label?: string; public_key?: string }) {
+export async function createContact(data: { name: string; address: string; email?: string; label?: string; public_key?: string; contact_user_id?: string }) {
   return apiFetch('/api/contacts', {
     method: 'POST',
     body: JSON.stringify(data),
