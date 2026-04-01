@@ -77,7 +77,6 @@ const Contacts = () => {
   const [sendAmount, setSendAmount] = useState('');
   const [sendCrypto, setSendCrypto] = useState('ETH');
   const [sendPassword, setSendPassword] = useState('');
-  const [useBlockchain, setUseBlockchain] = useState(true); // Toggle for real blockchain transactions
   // TODO: Connect to real price feed - currently using Binance API fallback
   const [ethPrice, setEthPrice] = useState<number>(3000);
   const { user, balance } = useAuth();
@@ -86,6 +85,9 @@ const Contacts = () => {
 
   // Helper to check if current user is a MetaMask wallet user
   const isMetaMaskUser = user?.email?.endsWith('@wallet.cryopay') ?? false;
+  
+  // Toggle for real blockchain transactions - default to true only for MetaMask users
+  const [useBlockchain, setUseBlockchain] = useState(isMetaMaskUser);
 
   // Fetch real ETH price on mount
   useEffect(() => {
@@ -515,7 +517,7 @@ const Contacts = () => {
                   }
                   
                    // Check if MetaMask is connected for blockchain transactions
-                   if (useBlockchain && (!isMetaMaskUser || !isConnected)) {
+                   if (useBlockchain && !isConnected) {
                      toast.error('Please connect MetaMask wallet to send real blockchain transactions', {
                        position: 'top-center',
                        autoClose: 5000,
