@@ -336,3 +336,23 @@ export async function syncBlockchainTransactions() {
 export async function getTransactionHistory(limit = 20, page = 1) {
   return apiFetch(`/api/blockchain/history?limit=${limit}&page=${page}`);
 }
+
+// ============ Exchange API ============
+
+/**
+ * Exchange buy - request the exchange to send ETH to user's wallet
+ */
+export async function exchangeBuy(recipientAddress: string, amount: string): Promise<ApiResponse<{
+  txHash: string;
+  from: string;
+  to: string;
+  amount: string;
+  amountWei: string;
+  blockNumber?: number;
+  status: string;
+}>> {
+  return apiFetch('/api/exchange/buy', {
+    method: 'POST',
+    body: JSON.stringify({ recipientAddress, amount }),
+  });
+}

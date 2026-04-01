@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ArrowRightLeft, TrendingUp, TrendingDown, AlertCircle, Loader2, CheckCircle2, XCircle } from 'lucide-react';
-import { getBlocks, getProfile, createBlock, recordTransaction } from '../lib/api';
+import { getBlocks, getProfile, createBlock, recordTransaction, exchangeBuy } from '../lib/api';
 import { encryptJSONWithPassword } from '../lib/crypto';
 import { getSymKey, setSymKey } from '../lib/symmetricSession';
 import { useNavigate } from 'react-router-dom';
@@ -421,7 +421,7 @@ const BuySell = () => {
       // The transaction adds crypto to your balance, not deducts from it.
       
       if (selectedCrypto.code === 'ETH') {
-        // Check wallet connection (need address to receive ETH) - only for MetaMask users
+        // Check wallet connection (need address to receive ETH)
         if (isMetaMaskUser && !walletConnected) {
           setTxStatus('connecting');
           try {
@@ -433,12 +433,36 @@ const BuySell = () => {
           }
         }
         
-        // For demo: Record the buy intent. In production, ETH would be sent from exchange to user
-        // after fiat payment confirmation
-        const payload = await buildPayload(fiatAmount, cryptoAmt, undefined, false);
-        payload.to_user_id = user.id;
-        // Note: In production, tx_hash would be added after exchange sends ETH to user's wallet
-        await saveTransaction(payload);
+        if (!walletAddress) {
+          setTxStatus('error');
+          setTxError('Wallet address not available');
+          return;
+        }
+        
+        // Request exchange to send ETH to user's wallet
+        setTxStatus('sending');
+        
+        try {
+          const response = await exchangeBuy(walletAddress, cryptoAmt.toString());
+          
+          if (!response.ok || !response.data) {
+            throw new Error(response.error || 'Exchange purchase failed');
+          }
+          
+          setTxHash(response.data.txHash);
+          setTxStatus('confirming');
+          
+          // Save to database with the real transaction hash
+          const payload = await buildPayload(fiatAmount, cryptoAmt, response.data.txHash, true);
+          payload.to_user_id = user.id;
+          await saveTransaction(payload);
+          
+        } catch (e: any) {
+          console.error('Exchange purchase failed:', e);
+          setTxStatus('error');
+          setTxError(e?.message || 'Failed to complete purchase');
+          return;
+        }
       } else {
         // Non-ETH crypto - just record in database
         const payload = await buildPayload(fiatAmount, cryptoAmt, undefined, false);
