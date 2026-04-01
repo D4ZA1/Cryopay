@@ -80,14 +80,13 @@ const Contacts = () => {
   const [sendPassword, setSendPassword] = useState('');
   // TODO: Connect to real price feed - currently using Binance API fallback
   const [ethPrice, setEthPrice] = useState<number>(3000);
-<<<<<<< HEAD
+
   const [_ethPriceSource, setEthPriceSource] = useState<string>('');
   const [ethPriceIsStale, setEthPriceIsStale] = useState(false);
-=======
+
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [contactToDelete, setContactToDelete] = useState<number | string | null>(null);
->>>>>>> b0bcbcb (small UI changes)
-  
+
   // State for searched profile in Add Contact flow
   const [searchedProfile, setSearchedProfile] = useState<{
     id: string;
