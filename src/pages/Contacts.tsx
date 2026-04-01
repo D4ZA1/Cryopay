@@ -453,6 +453,15 @@ const Contacts = () => {
               </button>
             </div>
             
+            {/* Warning for non-ETH addresses in blockchain mode */}
+            {useBlockchain && sendTarget?.address && !/^0x[a-fA-F0-9]{40}$/.test(sendTarget.address) && (
+              <div className="p-3 bg-orange-500/10 border border-orange-500/30 rounded-lg">
+                <p className="text-xs text-orange-300">
+                  ⚠️ Recipient doesn't have a valid Ethereum address. Disable blockchain mode to send via off-chain transaction.
+                </p>
+              </div>
+            )}
+            
             <div className="space-y-2">
               <Label className="text-slate-400">Receiver Public Key / Address</Label>
               <Input value={sendTarget?.address || ''} onChange={(e) => setSendTarget({ ...(sendTarget || {}), address: e.target.value })} className="bg-slate-800/50 border-white/[0.06] text-white placeholder:text-slate-500" />
@@ -515,6 +524,20 @@ const Contacts = () => {
                     });
                     return;
                   }
+                  
+                   // Check if recipient has a valid Ethereum address for blockchain transactions
+                   const isValidEthAddress = sendTarget.address && /^0x[a-fA-F0-9]{40}$/.test(sendTarget.address);
+                   
+                   // If blockchain is enabled but recipient doesn't have a valid ETH address, show error
+                   if (useBlockchain && !isValidEthAddress) {
+                     toast.error('Recipient does not have an Ethereum address. Please disable blockchain mode to send via off-chain transaction.', {
+                       position: 'top-center',
+                       autoClose: 5000,
+                       theme: 'dark',
+                       transition: Slide,
+                     });
+                     return;
+                   }
                   
                    // Check if MetaMask is connected for blockchain transactions
                    if (useBlockchain && !isConnected) {
