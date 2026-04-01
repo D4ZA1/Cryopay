@@ -13,6 +13,7 @@ import { encryptJSONWithPassword } from '../lib/crypto';
 import { setSymKey } from '../lib/symmetricSession';
 import { JWK } from '../types/schemas';
 import { getErrorMessage } from '@/lib/utils';
+import { getCryptoPrice } from '@/lib/currency';
 import { toast, Slide } from 'react-toastify';
 
 /**
@@ -79,6 +80,8 @@ const Contacts = () => {
   const [sendPassword, setSendPassword] = useState('');
   // TODO: Connect to real price feed - currently using Binance API fallback
   const [ethPrice, setEthPrice] = useState<number>(3000);
+  const [_ethPriceSource, setEthPriceSource] = useState<string>('');
+  const [ethPriceIsStale, setEthPriceIsStale] = useState(false);
   
   // State for searched profile in Add Contact flow
   const [searchedProfile, setSearchedProfile] = useState<{
@@ -106,20 +109,27 @@ const Contacts = () => {
     setUseBlockchain(isMetaMaskUser && isConnected);
   }, [isMetaMaskUser, isConnected]);
 
-  // Fetch real ETH price on mount
+  // Fetch real ETH price on mount and refresh every 30 seconds
   useEffect(() => {
     const fetchEthPrice = async () => {
       try {
-        const response = await fetch('https://api.binance.com/api/v3/ticker/price?symbol=ETHUSDT');
-        if (response.ok) {
-          const data = await response.json();
-          setEthPrice(parseFloat(data.price));
-        }
+        const result = await getCryptoPrice('ETH', 'USD');
+        setEthPrice(result.price);
+        setEthPriceSource(result.source);
+        setEthPriceIsStale(result.isStale);
       } catch (e) {
-        console.warn('Failed to fetch ETH price, using default');
+        console.warn('Failed to fetch ETH price, using default:', e);
+        setEthPriceIsStale(true);
       }
     };
+    
+    // Fetch immediately
     fetchEthPrice();
+    
+    // Refresh every 30 seconds
+    const interval = setInterval(fetchEthPrice, 30000);
+    
+    return () => clearInterval(interval);
   }, []);
 
   const filteredContacts = contacts.filter(contact =>
@@ -607,7 +617,7 @@ const Contacts = () => {
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-2">
-                <Label className="text-slate-400">Amount (fiat USD)</Label>
+                <Label className="text-slate-400">Amount (fiat USD){ethPriceIsStale && <span className="text-orange-400 text-xs ml-1">(price may be outdated)</span>}</Label>
                 <Input value={sendAmount} onChange={(e) => setSendAmount(e.target.value)} className="bg-slate-800/50 border-white/[0.06] text-white placeholder:text-slate-500" />
               </div>
               <div className="space-y-2">

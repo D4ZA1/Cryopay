@@ -14,6 +14,7 @@ import { useSendEth } from '../hooks/useSendTransaction';
 import UnlockTransactionModal from '../components/UnlockTransactionModal';
 import { getErrorMessage } from '@/lib/utils';
 import { toast, Slide } from 'react-toastify';
+import { getCryptoPrice, getUSDRate } from '@/lib/currency';
 
 // Minimum transaction amounts
 const MIN_FIAT_AMOUNT = 1; // $1 minimum
@@ -85,6 +86,8 @@ const BuySell = () => {
   const [selectedCurrency, setSelectedCurrency] = useState(CURRENCIES[0]);
   const [amount, setAmount] = useState('');
   const [cryptoAmount, setCryptoAmount] = useState('');
+  const [priceSource, setPriceSource] = useState<string>('');
+  const [priceIsStale, setPriceIsStale] = useState(false);
   
   // Transaction status
   const [txStatus, setTxStatus] = useState<TransactionStatus>('idle');
@@ -121,72 +124,31 @@ const BuySell = () => {
         const cryptoCode = selectedCrypto.code;
         const fiatCode = selectedCurrency.code;
         
+        // USDT is always 1:1 with USD-based currencies
         if (cryptoCode === 'USDT') {
-          setSelectedPrice(1);
+          if (fiatCode === 'USD' || fiatCode === 'USDT') {
+            setSelectedPrice(1);
+            setPriceSource('fixed');
+            setPriceIsStale(false);
+          } else {
+            // Get fiat rate for USDT in other currencies
+            const result = await getCryptoPrice('USDT', fiatCode);
+            setSelectedPrice(result.price);
+            setPriceSource(result.source);
+            setPriceIsStale(result.isStale);
+          }
           return;
         }
         
-        const symbol = `${cryptoCode}USDT`;
-        let priceUsdt: number | null = null;
-        try {
-          const binanceResp = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${symbol}`);
-          if (binanceResp.ok) {
-            const binData = await binanceResp.json();
-            priceUsdt = parseFloat(binData.price);
-          }
-        } catch (e) {
-          console.warn('Binance fetch failed, will try fallback', e);
-        }
-
-        if ((fiatCode === 'USD' || fiatCode === 'USDT') && priceUsdt !== null) {
-          setSelectedPrice(priceUsdt);
-          return;
-        }
-
-        if (priceUsdt !== null) {
-          try {
-            const fxResp = await fetch(`https://api.exchangerate.host/convert?from=USD&to=${fiatCode}&amount=1`);
-            if (fxResp.ok) {
-              const fxData = await fxResp.json();
-              const rate = fxData && fxData.result ? fxData.result : null;
-              if (rate) {
-                setSelectedPrice(priceUsdt * rate);
-                return;
-              }
-            }
-          } catch (e) {
-            console.warn('FX conversion failed, will try CoinGecko', e);
-          }
-        }
-
-        try {
-          const cgMap: Record<string, string> = {
-            BTC: 'bitcoin',
-            ETH: 'ethereum',
-            USDT: 'tether',
-            BNB: 'binancecoin',
-            SOL: 'solana',
-            ADA: 'cardano'
-          };
-          const id = cgMap[cryptoCode] || cryptoCode.toLowerCase();
-          const fiatLower = fiatCode.toLowerCase();
-          const cgResp = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${encodeURIComponent(id)}&vs_currencies=${encodeURIComponent(fiatLower)}`);
-          if (cgResp.ok) {
-            const cgData = await cgResp.json();
-            const val = cgData && cgData[id] ? cgData[id][fiatLower] : null;
-            if (val) {
-              setSelectedPrice(Number(val));
-              return;
-            }
-          }
-        } catch (e) {
-          console.warn('CoinGecko fallback failed', e);
-        }
-
-        throw new Error('Failed to fetch price for selected crypto/currency');
+        // Get crypto price in selected fiat currency
+        const result = await getCryptoPrice(cryptoCode, fiatCode);
+        setSelectedPrice(result.price);
+        setPriceSource(result.source);
+        setPriceIsStale(result.isStale);
+        
       } catch (e: any) {
-        console.warn('price fetch failed', e);
-        setPriceError(e?.message || 'Price fetch error');
+        console.error('Price fetch failed:', e);
+        setPriceError(e?.message || 'Failed to fetch price');
       } finally {
         setPriceLoading(false);
       }
@@ -206,18 +168,15 @@ const BuySell = () => {
   }, [activeTab]);
 
   // Helper function to get USD conversion rate
-  const getUSDRate = async (fromCurrency: string): Promise<number> => {
+  const getUSDRateForCurrency = async (fromCurrency: string): Promise<number> => {
     if (fromCurrency === 'USD' || fromCurrency === 'USDT') return 1;
     try {
-      const resp = await fetch(`https://api.exchangerate.host/convert?from=${fromCurrency}&to=USD&amount=1`);
-      if (resp.ok) {
-        const data = await resp.json();
-        return data.result || 1;
-      }
+      const result = await getUSDRate(fromCurrency);
+      return result.price;
     } catch (e) {
       console.warn('Failed to fetch USD rate:', e);
+      return 1; // Fallback
     }
-    return 1; // Fallback to 1:1
   };
 
   // pending payload is used when we need to request an unlock key first
@@ -484,7 +443,7 @@ const BuySell = () => {
     }
 
     // Convert fiat amount to USD for balance calculations
-    const usdRate = await getUSDRate(selectedCurrency.code);
+    const usdRate = await getUSDRateForCurrency(selectedCurrency.code);
     const amountFiatUSD = fiatAmount * usdRate;
 
     return {
@@ -753,7 +712,10 @@ const BuySell = () => {
                     ) : (
                       <span className="font-medium text-white">1 {selectedCrypto.code} = {selectedCurrency.symbol}{selectedPrice.toLocaleString(undefined, { maximumFractionDigits: 8 })}</span>
                     )}
-                    <div className="text-xs text-slate-500">Source: Binance</div>
+                    <div className="text-xs text-slate-500">
+                      Source: {priceSource || 'Loading...'}
+                      {priceIsStale && <span className="text-orange-400 ml-1">(may be outdated)</span>}
+                    </div>
                   </div>
                 </div>
                 <div className="flex justify-between text-sm">
