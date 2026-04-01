@@ -373,7 +373,10 @@ const BuySell = () => {
       } else {
         // Non-ETH crypto - just record in database (no blockchain tx for demo)
         // Use ETH balance if available for MetaMask users (real blockchain), otherwise fall back to database balance
-        const currentBalance = (isMetaMaskUser && ethBalance) ? parseFloat(ethBalance) : balance;
+        // Convert ETH to USD for comparison
+        const ethBalanceNum = (isMetaMaskUser && ethBalance) ? parseFloat(ethBalance) : 0;
+        const ethBalanceUSD = ethBalanceNum * selectedPrice; // selectedPrice is the current crypto price
+        const currentBalance = ethBalanceUSD > 0 ? ethBalanceUSD : balance;
         if (currentBalance < fiatAmount) {
           toast.error(`Insufficient balance. You have $${currentBalance.toFixed(2)} available.`, {
             position: 'top-center',

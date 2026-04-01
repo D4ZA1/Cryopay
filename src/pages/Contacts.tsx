@@ -527,9 +527,11 @@ const Contacts = () => {
                      return;
                    }
 
-                   // Check balance - use blockchain balance if MetaMask user and connected, otherwise database balance
-                   const ethBalanceNum = (isMetaMaskUser && ethBalance) ? parseFloat(ethBalance) : 0;
-                   const currentBalance = ethBalanceNum > 0 ? ethBalanceNum : balance;
+                    // Check balance - use blockchain balance if MetaMask user and connected, otherwise database balance
+                    const ethBalanceNum = (isMetaMaskUser && ethBalance) ? parseFloat(ethBalance) : 0;
+                    // Convert ETH to USD for comparison (ethPrice is fetched from Binance API)
+                    const ethBalanceUSD = ethBalanceNum * ethPrice;
+                    const currentBalance = ethBalanceUSD > 0 ? ethBalanceUSD : balance;
                    if (currentBalance < Number(sendAmount)) {
                      toast.error(`Insufficient balance. You have $${currentBalance.toFixed(2)} available.`, {
                        position: 'top-center',
