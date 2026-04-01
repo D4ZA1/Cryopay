@@ -321,29 +321,6 @@ const Transactions = () => {
               />
             </div>
             <div className="flex gap-2 flex-wrap">
-              {/* Off-chain / Blockchain toggle */}
-              {isMetaMaskUser && isEthConnected && (
-                <div className="flex gap-2">
-                  <Button
-                    variant={!showBlockchain ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setShowBlockchain(false)}
-                    className={!showBlockchain ? "bg-emerald-500 text-black hover:bg-emerald-600" : "bg-white/[0.06] text-slate-400 border-white/[0.06] hover:bg-white/[0.1]"}
-                  >
-                    <Unlink className="h-4 w-4 mr-2" />
-                    Off-chain
-                  </Button>
-                  <Button
-                    variant={showBlockchain ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setShowBlockchain(true)}
-                    className={showBlockchain ? "bg-emerald-500 text-black hover:bg-emerald-600" : "bg-white/[0.06] text-slate-400 border-white/[0.06] hover:bg-white/[0.1]"}
-                  >
-                    <Link2 className="h-4 w-4 mr-2" />
-                    Blockchain
-                  </Button>
-                </div>
-              )}
               <select
                 value={filterType}
                 onChange={(e) => setFilterType(e.target.value)}

@@ -80,8 +80,13 @@ const Contacts = () => {
   const [sendPassword, setSendPassword] = useState('');
   // TODO: Connect to real price feed - currently using Binance API fallback
   const [ethPrice, setEthPrice] = useState<number>(3000);
+<<<<<<< HEAD
   const [_ethPriceSource, setEthPriceSource] = useState<string>('');
   const [ethPriceIsStale, setEthPriceIsStale] = useState(false);
+=======
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [contactToDelete, setContactToDelete] = useState<number | string | null>(null);
+>>>>>>> b0bcbcb (small UI changes)
   
   // State for searched profile in Add Contact flow
   const [searchedProfile, setSearchedProfile] = useState<{
@@ -399,21 +404,28 @@ const Contacts = () => {
     }
   };
 
-  const handleDeleteContact = async (id: number | string) => {
-    if (!window.confirm('Are you sure you want to delete this contact?')) return;
-     try {
-        const response = await deleteContact(Number(id));
-        if (!response.ok) {
-          console.error('delete contact failed', response.error);
-          toast.error('Failed to delete contact: ' + getErrorMessage(response.error), {
-            position: 'top-center',
-            autoClose: 5000,
-            theme: 'dark',
-            transition: Slide,
-          });
-          return;
-        }
-      setContacts(contacts.filter(c => c.id !== id));
+  const handleDeleteContact = (id: number | string) => {
+    setContactToDelete(id);
+    setIsDeleteConfirmOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (contactToDelete === null) return;
+    try {
+      const response = await deleteContact(Number(contactToDelete));
+      if (!response.ok) {
+        console.error('delete contact failed', response.error);
+        toast.error('Failed to delete contact: ' + getErrorMessage(response.error), {
+          position: 'top-center',
+          autoClose: 5000,
+          theme: 'dark',
+          transition: Slide,
+        });
+        return;
+      }
+      setContacts(contacts.filter(c => c.id !== contactToDelete));
+      setIsDeleteConfirmOpen(false);
+      setContactToDelete(null);
     } catch (e) {
       console.error('delete failed', e);
       toast.error('Failed to delete contact', {
@@ -423,6 +435,11 @@ const Contacts = () => {
         transition: Slide,
       });
     }
+  };
+
+  const handleCancelDelete = () => {
+    setIsDeleteConfirmOpen(false);
+    setContactToDelete(null);
   };
 
   const handleEditContact = async () => {
@@ -1172,6 +1189,33 @@ const Contacts = () => {
                 Cancel
               </Button>
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Modal */}
+      <Dialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
+        <DialogContent className="sm:max-w-md bg-slate-900/95 backdrop-blur-xl border-white/[0.06]">
+          <DialogHeader>
+            <DialogTitle className="text-white">Delete Contact</DialogTitle>
+            <DialogDescription className="text-slate-400">
+              Are you sure you want to delete this contact? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex gap-2 pt-4">
+            <Button 
+              onClick={handleConfirmDelete}
+              className="flex-1 bg-red-600 hover:bg-red-700 text-white border-0"
+            >
+              Delete
+            </Button>
+            <Button 
+              variant="outline" 
+              onClick={handleCancelDelete}
+              className="flex-1 bg-white/[0.06] border-white/[0.06] text-slate-400 hover:bg-white/[0.08]"
+            >
+              Cancel
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
