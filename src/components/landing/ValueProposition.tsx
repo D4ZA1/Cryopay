@@ -75,12 +75,11 @@ export default function ValueProposition() {
 function AnimatedLine({ text, color, start, end, progress, index }: any) {
   const opacity = useTransform(progress, [start, end], [0, 1]);
   const y = useTransform(progress, [start, end], [40, 0]);
-  const x = useTransform(progress, [start, end], [index % 2 === 0 ? -30 : 30, 0]);
 
   return (
     <motion.div
       style={{
-        opacity, y, x,
+        opacity, y,
         fontFamily: 'var(--font-display)',
         fontSize: 'clamp(1.25rem, 3vw, 2rem)',
         fontWeight: 500,

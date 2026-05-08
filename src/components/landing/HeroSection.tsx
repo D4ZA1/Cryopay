@@ -44,25 +44,10 @@ export default function HeroSection() {
           </defs>
         </svg>
 
-        {/* Shader Backgrounds */}
+        {/* Shader Backgrounds — handled by global ScrollBackground */}
         <motion.div style={{ scale: bgScale }} className="hero-shader-bg">
-          <MeshGradient
-            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}
-            colors={['#000000', '#22c55e', '#06b6d4', '#164e63', '#f97316']}
-            speed={0.25}
-            backgroundColor="#000000"
-          />
-          <MeshGradient
-            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0.4 }}
-            colors={['#000000', '#ffffff', '#22c55e', '#f97316']}
-            speed={0.15}
-            wireframe={true}
-            backgroundColor="transparent"
-          />
+          <div style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', background: 'transparent' }} />
         </motion.div>
-
-        {/* Dark overlay on scroll */}
-        <motion.div style={{ position: 'absolute', inset: 0, background: '#050505', opacity: overlayOpacity, zIndex: 15 }} />
 
         {/* Smart Bin - scroll animated */}
         <motion.div

@@ -8,6 +8,7 @@ import DashboardPage from './pages/DashboardPage';
 import WalletPage from './pages/WalletPage';
 import TransactionsPage from './pages/TransactionsPage';
 import SettingsPage from './pages/SettingsPage';
+import FindBinsPage from './pages/FindBinsPage';
 
 function App() {
   return (
@@ -37,6 +38,7 @@ function App() {
         <Route path="/wallet" element={<WalletPage />} />
         <Route path="/transactions" element={<TransactionsPage />} />
         <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/find-bins" element={<FindBinsPage />} />
 
         {/* Fallback */}
         <Route path="*" element={<LandingPage />} />

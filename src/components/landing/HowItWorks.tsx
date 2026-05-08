@@ -13,7 +13,7 @@ export default function HowItWorks() {
   const isInView = useInView(ref, { once: true, margin: '-100px' });
 
   return (
-    <section id="how-it-works" className="section" ref={ref}>
+    <section id="how-it-works" className="section bg-green-glow" ref={ref}>
       <div className="section-inner">
         <motion.div initial={{ opacity: 0, y: 30 }} animate={isInView ? { opacity: 1, y: 0 } : {}} transition={{ duration: 0.6 }}>
           <span className="section-label"><span className="section-label-bar" /> How It Works</span>

@@ -1,4 +1,5 @@
 import '../styles/landing.css';
+import ScrollBackground from '../components/landing/ScrollBackground';
 import Navbar from '../components/landing/Navbar';
 import HeroSection from '../components/landing/HeroSection';
 import TextRevealSection from '../components/landing/TextRevealSection';
@@ -14,8 +15,11 @@ import FooterSection from '../components/landing/FooterSection';
 const LandingPage = () => {
   return (
     <div className="landing-root">
+      {/* Full-page shader background that changes as you scroll */}
+      <ScrollBackground />
+
       <Navbar />
-      <main>
+      <main style={{ position: 'relative', zIndex: 1 }}>
         <HeroSection />
         <TextRevealSection />
         <BinAnimation />

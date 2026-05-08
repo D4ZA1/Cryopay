@@ -20,7 +20,7 @@ export default function HorizontalFeatures() {
     offset: ['start start', 'end end'],
   });
 
-  const x = useTransform(scrollYProgress, [0, 1], ['5%', '-60%']);
+  const x = useTransform(scrollYProgress, [0, 1], ['2%', '-75%']);
 
   return (
     <section id="features" ref={containerRef} className="hscroll-wrapper" style={{ height: '300vh' }}>
