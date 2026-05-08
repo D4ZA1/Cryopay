@@ -521,7 +521,7 @@ const Settings = () => {
         <CardContent>
           <div className="flex items-center justify-between p-4 bg-slate-800/50 rounded-lg border border-white/[0.06]">
             <div>
-              <h4 className="font-medium text-white">MetaMask</h4>
+              <h4 className="font-medium text-white">Crypto Wallet</h4>
               <p className="text-sm text-slate-500">0x742d...0bEb</p>
             </div>
             <Button variant="outline" size="sm" className="bg-white/[0.06] border-white/[0.06] text-white hover:bg-white/[0.1]">Disconnect</Button>

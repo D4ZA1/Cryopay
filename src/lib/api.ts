@@ -206,38 +206,6 @@ export async function loginWithMfa(email: string, password: string, mfaCode: str
   });
 }
 
-// ============ MetaMask Authentication ============
-
-/**
- * Register/login with MetaMask wallet
- */
-export async function connectMetaMask(data: {
-  address: string;
-  signature: string;
-  message: string;
-  firstName?: string;
-  lastName?: string;
-}) {
-  return apiFetch('/api/auth/metamask/connect', {
-    method: 'POST',
-    body: JSON.stringify(data),
-  });
-}
-
-/**
- * Login with MetaMask (existing user)
- */
-export async function loginMetaMask(data: {
-  address: string;
-  signature: string;
-  message: string;
-}) {
-  return apiFetch('/api/auth/metamask-login', {
-    method: 'POST',
-    body: JSON.stringify(data),
-  });
-}
-
 // ============ Ethereum API ============
 
 /**
@@ -355,4 +323,85 @@ export async function exchangeBuy(recipientAddress: string, amount: string): Pro
     method: 'POST',
     body: JSON.stringify({ recipientAddress, amount }),
   });
+}
+
+// ============ Recycle / GreenCryoPay API ============
+
+export async function submitQrScan(qrString: string) {
+  return apiFetch('/api/recycle/scan', {
+    method: 'POST',
+    body: JSON.stringify({ qr_string: qrString }),
+  });
+}
+
+export async function getRecycleBalance() {
+  return apiFetch<{ balance: number; source: string }>('/api/recycle/balance');
+}
+
+export async function getRecycleDeposits(limit = 20, offset = 0) {
+  return apiFetch(`/api/recycle/deposits?limit=${limit}&offset=${offset}`);
+}
+
+export async function redeemVoucher(tokensSpent: number, voucherType: 'transit' | 'grocery' | 'charity') {
+  return apiFetch('/api/recycle/redeem', {
+    method: 'POST',
+    body: JSON.stringify({ tokens_spent: tokensSpent, voucher_type: voucherType }),
+  });
+}
+
+export async function getRedemptions() {
+  return apiFetch('/api/recycle/redemptions');
+}
+
+export async function getMaterialPrices() {
+  return apiFetch('/api/bins/prices');
+}
+
+export async function getBins() {
+  return apiFetch('/api/bins');
+}
+
+export async function generateBinQr(binId: string, materialType: string, weightGrams: number) {
+  return apiFetch<{ qr_string: string; expires_at: string }>(`/api/bins/${binId}/generate-qr`, {
+    method: 'POST',
+    body: JSON.stringify({ materialType, weightGrams }),
+  });
+}
+
+export async function getRecycleStats() {
+  return apiFetch<{
+    total_deposits: number;
+    total_tokens_earned: number;
+    total_kg_recycled: number;
+    confirmed_tokens: number;
+    pending_tokens: number;
+    by_material: Array<{ material_type: string; deposit_count: number; tokens_earned: number; weight_grams: number }>;
+    last_deposit_at: number | null;
+  }>('/api/recycle/stats');
+}
+
+// ============ AMM API ============
+
+export async function triggerAmmRecalculate() {
+  return apiFetch('/api/amm/recalculate', { method: 'POST' });
+}
+
+export async function simulateAmmPrice(
+  material: string,
+  wCurrentKg = 0,
+  uActive = 0
+) {
+  return apiFetch(
+    `/api/amm/simulate?material=${encodeURIComponent(material)}&w_current_kg=${wCurrentKg}&u_active=${uActive}`
+  );
+}
+
+export async function getAmmHistory(
+  material?: string,
+  hours = 24,
+  limit = 100
+) {
+  const params = new URLSearchParams({ hours: String(hours), limit: String(limit) });
+  if (material) params.set('material', material);
+  return apiFetch(`/api/amm/history?${params.toString()}`);
 }

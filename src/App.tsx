@@ -20,6 +20,11 @@ import Wallet from './pages/Wallet';
 import ConfirmKey from './pages/ConfirmKey';
 import Blockchain from './pages/Blockchain';
 import AuthenticatedLayout from './layouts/AuthenticatedLayout';
+import RecycleScan from './pages/RecycleScan';
+import RecycleSuccess from './pages/RecycleSuccess';
+import TokenWallet from './pages/TokenWallet';
+import RecycleHistory from './pages/RecycleHistory';
+import RedeemVoucher from './pages/RedeemVoucher';
 // Wallet, confirm-key and blockchain pages removed per current requirements
 
 function App() {
@@ -64,6 +69,11 @@ function App() {
           <Route path="/blockchain" element={<Blockchain />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/buy-sell" element={<BuySell />} />
+          <Route path="/recycle/scan" element={<RecycleScan />} />
+          <Route path="/recycle/success" element={<RecycleSuccess />} />
+          <Route path="/recycle/wallet" element={<TokenWallet />} />
+          <Route path="/recycle/history" element={<RecycleHistory />} />
+          <Route path="/recycle/redeem" element={<RedeemVoucher />} />
         </Route>
       </Route>
 

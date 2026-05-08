@@ -28,12 +28,15 @@ import {
   Download,
   Activity,
   ExternalLink,
+  Leaf,
+  QrCode,
+  Gift,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
-import { useEthereum } from "@/context/EthereumContext";
+import { useWallet } from "@/context/EthereumContext";
 import { useEffect, useState, useCallback, useRef } from "react";
-import { getBlocks, getWallet, getTransactionHistory, getProfile } from "../lib/api";
+import { getBlocks, getWallet, getProfile, getRecycleStats } from "../lib/api";
 import { TransactionKind } from "../constants";
 import { motion, AnimatePresence } from "framer-motion";
 import CryptoTicker from "@/components/CryptoTicker";
@@ -122,13 +125,9 @@ function SparklineBars({
 const Dashboard = () => {
   const isNonCustodial = true;
   const { user, balance, setBalance } = useAuth();
-  const { address: ethAddress, isConnected: isEthConnected, balance: ethBalance } = useEthereum();
-  
-  // Helper to check if current user is a MetaMask wallet user
-  const isMetaMaskUser = user?.email?.endsWith('@wallet.cryopay') ?? false;
+  const { address: ethAddress, grnBalance, isLoaded } = useWallet();
   
   const [recentTx, setRecentTx] = useState<any[]>([]);
-  const [blockchainTx, setBlockchainTx] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [walletAddress, setWalletAddress] = useState<string>("");
   const [showReceiveModal, setShowReceiveModal] = useState(false);
@@ -138,6 +137,13 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const portfolioRef = useRef<HTMLDivElement>(null);
   const [portfolioVisible, setPortfolioVisible] = useState(false);
+  const [recycleStats, setRecycleStats] = useState<{
+    total_deposits: number;
+    total_tokens_earned: number;
+    total_kg_recycled: number;
+    confirmed_tokens: number;
+    pending_tokens: number;
+  } | null>(null);
 
   // Observe portfolio bar entering viewport
   useEffect(() => {
@@ -179,25 +185,15 @@ const Dashboard = () => {
     })();
   }, [user]);
 
-  // Fetch blockchain transactions for MetaMask users
+  // Fetch recycle stats
   useEffect(() => {
-    if (!isMetaMaskUser || !isEthConnected || !user) return;
+    if (!user) return;
+    getRecycleStats().then((res) => {
+      if (res.ok && res.data) setRecycleStats(res.data);
+    });
+  }, [user]);
 
-    const fetchBlockchainTx = async () => {
-      try {
-        const response = await getTransactionHistory(6, 1);
-        if (response.ok && response.data?.transactions) {
-          setBlockchainTx(response.data.transactions);
-        }
-      } catch (e) {
-        console.warn("blockchain tx fetch error", e);
-      }
-    };
-
-    fetchBlockchainTx();
-  }, [isMetaMaskUser, isEthConnected, user]);
-
-  // Fetch balance from blocks
+  // Fetch wallet address
   useEffect(() => {
     (async () => {
       if (!user) return;
@@ -323,9 +319,7 @@ const Dashboard = () => {
 
   // Handle copy address
   const copyAddress = async () => {
-    const addressToCopy = isMetaMaskUser && isEthConnected && ethAddress 
-      ? ethAddress 
-      : walletAddress;
+    const addressToCopy = ethAddress || walletAddress;
     if (addressToCopy) {
       await navigator.clipboard.writeText(addressToCopy);
       setCopied(true);
@@ -340,10 +334,7 @@ const Dashboard = () => {
 
   // Handle receive button click - show wallet address
   const handleReceive = () => {
-    // MetaMask users can show modal if they have ethAddress, simple accounts need walletAddress
-    const hasValidAddress = isMetaMaskUser 
-      ? (isEthConnected && ethAddress) 
-      : walletAddress;
+    const hasValidAddress = ethAddress || walletAddress;
     
     if (hasValidAddress) {
       setShowReceiveModal(true);
@@ -416,17 +407,17 @@ const Dashboard = () => {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="relative space-y-3">
-                  {/* Show ETH balance for MetaMask users */}
-                  {isMetaMaskUser && isEthConnected && ethBalance ? (
+                  {/* GRN token balance */}
+                  {isLoaded && grnBalance > 0 ? (
                     <>
                       <div className="flex items-baseline gap-3">
                         <span className="text-4xl md:text-5xl font-bold text-white tabular-nums">
-                          {parseFloat(ethBalance).toFixed(4)}
+                          {grnBalance.toFixed(4)}
                         </span>
-                        <span className="text-sm text-slate-400 font-medium">ETH</span>
+                        <span className="text-sm text-slate-400 font-medium">GRN</span>
                       </div>
                       <p className="text-sm text-slate-500">
-                        ≈ ${(parseFloat(ethBalance || '0') * 3000).toFixed(2)} USD
+                        Fiat balance: ${balance.toFixed(2)} USD
                       </p>
                     </>
                   ) : (
@@ -452,14 +443,41 @@ const Dashboard = () => {
                     </>
                   )}
 
-                  {isMetaMaskUser && isEthConnected && ethAddress ? (
+                  {ethAddress ? (
                     <div className="flex items-center gap-2 pt-1">
-                      <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-full">
+                      <div className="flex items-center gap-2 px-3 py-1.5 bg-white/[0.04] border border-white/[0.06] rounded-full">
                         <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                        <span className="text-xs text-emerald-400 font-medium">MetaMask</span>
                         <span className="text-xs text-slate-400 font-mono">
-                          {ethAddress.slice(0, 6)}...{ethAddress.slice(-4)}
+                          {ethAddress.slice(0, 10)}...
+                          {ethAddress.slice(-6)}
                         </span>
+                        <button
+                          type="button"
+                          className="ml-1 text-slate-500 hover:text-white transition-colors"
+                          onClick={copyAddress}
+                        >
+                          <AnimatePresence mode="wait">
+                            {copied ? (
+                              <motion.div
+                                key="check"
+                                initial={{ scale: 0 }}
+                                animate={{ scale: 1 }}
+                                exit={{ scale: 0 }}
+                              >
+                                <Check className="h-3.5 w-3.5 text-emerald-400" />
+                              </motion.div>
+                            ) : (
+                              <motion.div
+                                key="copy"
+                                initial={{ scale: 0 }}
+                                animate={{ scale: 1 }}
+                                exit={{ scale: 0 }}
+                              >
+                                <Copy className="h-3.5 w-3.5" />
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </button>
                       </div>
                     </div>
                   ) : isNonCustodial && walletAddress && (
@@ -742,101 +760,8 @@ const Dashboard = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {/* Blockchain transactions for MetaMask users */}
-                  {isMetaMaskUser && isEthConnected ? (
-                    blockchainTx.length === 0 && !loading ? (
-                      <TableRow className="border-white/[0.06] hover:bg-white/[0.02]">
-                        <TableCell colSpan={3}>
-                          <div className="flex flex-col items-center justify-center py-12 text-slate-500">
-                            <Activity className="h-10 w-10 text-slate-700 mb-3" />
-                            <p className="text-sm font-medium">
-                              No blockchain transactions
-                            </p>
-                            <p className="text-xs text-slate-600 mt-1">
-                              Your Sepolia transactions will appear here
-                            </p>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      blockchainTx.map((tx: any) => {
-                        const isSent = tx.from_address?.toLowerCase() === ethAddress?.toLowerCase();
-                        const displayAddress = isSent ? tx.to_address : tx.from_address;
-                        const truncatedAddress = displayAddress
-                          ? `${displayAddress.slice(0, 6)}...${displayAddress.slice(-4)}`
-                          : "Unknown";
-                        const amountEth = tx.amount_wei
-                          ? parseFloat(tx.amount_wei) / 1e18
-                          : 0;
-                        const date = tx.timestamp
-                          ? new Date(tx.timestamp).toLocaleString()
-                          : "";
-                        
-                        const getBlockchainStatusClass = (status: string) => {
-                          switch (status) {
-                            case "confirmed":
-                              return "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
-                            case "pending":
-                              return "bg-amber-500/10 text-amber-400 border border-amber-500/20";
-                            case "failed":
-                              return "bg-red-500/10 text-red-400 border border-red-500/20";
-                            default:
-                              return "bg-slate-500/10 text-slate-400 border border-slate-500/20";
-                          }
-                        };
-
-                        return (
-                          <motion.tr
-                            key={tx.tx_hash || tx.id}
-                            className="border-white/[0.06] hover:bg-white/[0.02] transition-colors"
-                            initial={{ opacity: 0, x: -10 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{
-                              duration: 0.3,
-                              ease: "easeOut",
-                            }}
-                          >
-                            <TableCell className="py-4">
-                              <div className="flex items-center gap-3">
-                                <span className="p-2 rounded-xl bg-white/[0.04] border border-white/[0.06]">
-                                  {getTransactionIcon(isSent ? "Sent" : "Received")}
-                                </span>
-                                <div>
-                                  <div className="font-medium text-white text-sm">
-                                    {isSent ? `To ${truncatedAddress}` : `From ${truncatedAddress}`}
-                                  </div>
-                                  <div className="text-xs text-slate-500">
-                                    {date}
-                                  </div>
-                                </div>
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-right py-4">
-                              <div
-                                className={`font-semibold text-sm ${
-                                  !isSent ? "text-emerald-400" : "text-white"
-                                }`}
-                              >
-                                {isSent ? "-" : "+"}{amountEth.toFixed(6)} ETH
-                              </div>
-                              <div className="text-xs text-slate-500">
-                                ≈ ${(amountEth * 3000).toFixed(2)} USD
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-center py-4">
-                              <span
-                                className={`px-2.5 py-1 text-[10px] font-semibold rounded-full capitalize ${getBlockchainStatusClass(tx.status)}`}
-                              >
-                                {tx.status || "Unknown"}
-                              </span>
-                            </TableCell>
-                          </motion.tr>
-                        );
-                      })
-                    )
-                  ) : (
-                    /* Off-chain blocks for custodial users */
-                    recentTx.length === 0 && !loading ? (
+                  {/* Off-chain blocks */}
+                  {recentTx.length === 0 && !loading ? (
                       <TableRow className="border-white/[0.06] hover:bg-white/[0.02]">
                         <TableCell colSpan={3}>
                           <div className="flex flex-col items-center justify-center py-12 text-slate-500">
@@ -933,9 +858,61 @@ const Dashboard = () => {
                         );
                       })
                     )
-                  )}
                 </TableBody>
               </Table>
+            </CardContent>
+          </Card>
+        </FadeInUp>
+
+        {/* ------------------------------------------------------------------ */}
+        {/* GRN Recycling Widget */}
+        {/* ------------------------------------------------------------------ */}
+        <FadeInUp>
+          <Card className="bg-gradient-to-br from-green-900/40 to-emerald-900/30 border border-green-500/20">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-white flex items-center gap-2 text-base">
+                <Leaf className="h-5 w-5 text-green-400" />
+                GRN Recycling Rewards
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-3 gap-4 mb-4">
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-green-400">
+                    {recycleStats ? recycleStats.confirmed_tokens : (isLoaded ? grnBalance : '—')}
+                  </p>
+                  <p className="text-xs text-slate-400 mt-1">GRN Confirmed</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-amber-400">
+                    {recycleStats?.pending_tokens ?? 0}
+                  </p>
+                  <p className="text-xs text-slate-400 mt-1">GRN Pending</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-white">
+                    {recycleStats?.total_kg_recycled ?? 0}
+                  </p>
+                  <p className="text-xs text-slate-400 mt-1">kg Recycled</p>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Link to="/recycle/scan" className="flex-1">
+                  <Button size="sm" className="w-full bg-green-600 hover:bg-green-700 text-white text-xs">
+                    <QrCode className="h-3 w-3 mr-1" /> Scan Bin
+                  </Button>
+                </Link>
+                <Link to="/recycle/wallet" className="flex-1">
+                  <Button size="sm" variant="outline" className="w-full border-green-500/30 text-green-400 hover:bg-green-900/30 text-xs">
+                    <Leaf className="h-3 w-3 mr-1" /> GRN Wallet
+                  </Button>
+                </Link>
+                <Link to="/recycle/redeem" className="flex-1">
+                  <Button size="sm" variant="outline" className="w-full border-green-500/30 text-green-400 hover:bg-green-900/30 text-xs">
+                    <Gift className="h-3 w-3 mr-1" /> Redeem
+                  </Button>
+                </Link>
+              </div>
             </CardContent>
           </Card>
         </FadeInUp>
@@ -958,14 +935,10 @@ const Dashboard = () => {
           <div className="space-y-4">
             <div className="p-4 bg-white/[0.04] border border-white/[0.06] rounded-xl break-all">
               <p className="text-xs text-slate-500 mb-2 uppercase tracking-wider font-medium">
-                {isMetaMaskUser && isEthConnected && ethAddress 
-                  ? "Your Ethereum Address" 
-                  : "Your Public Key"}
+                Your Wallet Address
               </p>
               <p className="font-mono text-sm text-white">
-                {isMetaMaskUser && isEthConnected && ethAddress
-                  ? ethAddress
-                  : (walletAddress || "No wallet address found")}
+                {ethAddress || walletAddress || "No wallet address found"}
               </p>
             </div>
             <div className="flex gap-3">

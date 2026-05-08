@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutGrid, ArrowRightLeft, Users, Settings, PanelLeftClose, PanelRightClose, ArrowUp, Wallet, Database } from 'lucide-react';
+import { LayoutGrid, ArrowRightLeft, Users, Settings, PanelLeftClose, PanelRightClose, ArrowUp, Wallet, Database, Leaf, QrCode, Gift, History } from 'lucide-react';
 import LogoutButton from '../components/LogoutButton';
 import PinSidebarToggle from './PinSidebarToggle';
 
@@ -53,6 +53,23 @@ const Sidebar: React.FC<SidebarProps> = ({ isExpanded, isPinned: externalIsPinne
       </NavLink>
       <NavLink to="/blockchain" className={({ isActive }) => `flex items-center px-4 py-2 text-sm font-medium ${isActive ? 'bg-white/[0.06] text-emerald-400 rounded-lg' : 'text-slate-400 hover:bg-white/[0.06] hover:text-white rounded-lg'}`}>
         <Database className="h-5 w-5 flex-shrink-0" />{(isExpanded || pinState) && <span className="ml-3">Blockchain</span>}
+      </NavLink>
+      {/* Recycle section */}
+      {(isExpanded || pinState) && (
+        <p className="px-4 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-widest text-slate-600">Recycle</p>
+      )}
+      {!(isExpanded || pinState) && <div className="mx-4 my-2 border-t border-white/[0.06]" />}
+      <NavLink to="/recycle/wallet" className={({ isActive }) => `flex items-center px-4 py-2 text-sm font-medium ${isActive ? 'bg-white/[0.06] text-emerald-400 rounded-lg' : 'text-slate-400 hover:bg-white/[0.06] hover:text-white rounded-lg'}`}>
+        <Leaf className="h-5 w-5 flex-shrink-0 text-green-500" />{(isExpanded || pinState) && <span className="ml-3">GRN Wallet</span>}
+      </NavLink>
+      <NavLink to="/recycle/scan" className={({ isActive }) => `flex items-center px-4 py-2 text-sm font-medium ${isActive ? 'bg-white/[0.06] text-emerald-400 rounded-lg' : 'text-slate-400 hover:bg-white/[0.06] hover:text-white rounded-lg'}`}>
+        <QrCode className="h-5 w-5 flex-shrink-0" />{(isExpanded || pinState) && <span className="ml-3">Scan Bin</span>}
+      </NavLink>
+      <NavLink to="/recycle/history" className={({ isActive }) => `flex items-center px-4 py-2 text-sm font-medium ${isActive ? 'bg-white/[0.06] text-emerald-400 rounded-lg' : 'text-slate-400 hover:bg-white/[0.06] hover:text-white rounded-lg'}`}>
+        <History className="h-5 w-5 flex-shrink-0" />{(isExpanded || pinState) && <span className="ml-3">Recycle History</span>}
+      </NavLink>
+      <NavLink to="/recycle/redeem" className={({ isActive }) => `flex items-center px-4 py-2 text-sm font-medium ${isActive ? 'bg-white/[0.06] text-emerald-400 rounded-lg' : 'text-slate-400 hover:bg-white/[0.06] hover:text-white rounded-lg'}`}>
+        <Gift className="h-5 w-5 flex-shrink-0" />{(isExpanded || pinState) && <span className="ml-3">Redeem</span>}
       </NavLink>
       <NavLink to="/settings" className={({ isActive }) => `flex items-center px-4 py-2 text-sm font-medium ${isActive ? 'bg-white/[0.06] text-emerald-400 rounded-lg' : 'text-slate-400 hover:bg-white/[0.06] hover:text-white rounded-lg'}`}>
         <Settings className="h-5 w-5 flex-shrink-0" />{(isExpanded || pinState) && <span className="ml-3">Settings</span>}

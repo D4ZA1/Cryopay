@@ -1,43 +1,44 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-// We'll need wallet logo assets later, for now we use placeholders
-// import MetaMaskLogo from '../assets/metamask.svg'; 
+import { Wallet, CheckCircle } from "lucide-react";
 
-const WalletButton = ({ logo, name, tag }) => (
-  <Button variant="outline" className="w-full h-16 justify-start p-4 text-lg">
-    {/* <img src={logo} alt={`${name} logo`} className="w-8 h-8 mr-4" /> */}
-    <span className="w-8 h-8 mr-4 bg-gray-200 rounded-full" /> {/* Placeholder */}
-    {name}
-    {tag && <span className="ml-auto text-xs font-semibold bg-slate-100 text-slate-500 px-2 py-1 rounded-full">{tag}</span>}
-  </Button>
-);
-
-const ConnectWalletModal = ({ isOpen, onClose, onNavigate }) => {
-  const handleConnect = (wallet) => {
-    console.log(`Connecting with ${wallet}...`);
-    // In a real app, this would trigger the connection logic (e.g., MetaMask SDK)
-    // After a successful connection, we navigate to the dashboard.
-    onClose();
-    onNavigate('dashboard');
-  };
-  
+const ConnectWalletModal = ({ isOpen, onClose, onNavigate }: {
+  isOpen: boolean;
+  onClose: () => void;
+  onNavigate: (page: string) => void;
+}) => {
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Connect your Wallet</DialogTitle>
+          <DialogTitle>Your Wallet is Ready</DialogTitle>
           <DialogDescription>
-            Select your wallet provider to continue.
+            GreenCryoPay automatically creates and manages your wallet. No browser extension needed.
           </DialogDescription>
         </DialogHeader>
-        <div className="grid gap-4 py-4">
-          <WalletButton name="MetaMask" tag="Popular" onClick={() => handleConnect('MetaMask')} />
-          <WalletButton name="WalletConnect" onClick={() => handleConnect('WalletConnect')} />
-          <WalletButton name="Coinbase Wallet" onClick={() => handleConnect('Coinbase')} />
+        <div className="py-4 space-y-4">
+          <div className="flex items-start gap-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+            <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-medium text-green-800">Wallet auto-created</p>
+              <p className="text-xs text-green-700 mt-0.5">
+                An Ethereum wallet was generated for you when you registered. Your private key is encrypted and stored securely.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-start gap-3 p-3 bg-slate-50 border border-slate-200 rounded-lg">
+            <Wallet className="h-5 w-5 text-slate-600 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-medium text-slate-800">GRN Token Wallet</p>
+              <p className="text-xs text-slate-600 mt-0.5">
+                Your wallet receives GRN tokens when you recycle. Redeem them for transit, grocery, or charity vouchers.
+              </p>
+            </div>
+          </div>
         </div>
-        <p className="text-center text-sm text-slate-500">
-          New to crypto wallets? <a href="#" className="underline">Learn More</a>
-        </p>
+        <Button onClick={() => { onClose(); onNavigate('dashboard'); }} className="w-full">
+          Go to Dashboard
+        </Button>
       </DialogContent>
     </Dialog>
   );

@@ -4,13 +4,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ArrowRightLeft, TrendingUp, TrendingDown, AlertCircle, Loader2, CheckCircle2, XCircle } from 'lucide-react';
-import { getBlocks, getProfile, createBlock, recordTransaction, exchangeBuy } from '../lib/api';
+import { getBlocks, getProfile, createBlock } from '../lib/api';
 import { encryptJSONWithPassword } from '../lib/crypto';
 import { getSymKey, setSymKey } from '../lib/symmetricSession';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { useEthereum } from '../context/EthereumContext';
-import { useSendEth } from '../hooks/useSendTransaction';
 import UnlockTransactionModal from '../components/UnlockTransactionModal';
 import { getErrorMessage } from '@/lib/utils';
 import { toast, Slide } from 'react-toastify';
@@ -19,9 +17,6 @@ import { getCryptoPrice, getUSDRate } from '@/lib/currency';
 // Minimum transaction amounts
 const MIN_FIAT_AMOUNT = 1; // $1 minimum
 const MIN_CRYPTO_AMOUNT = 0.00000001; // Smallest crypto unit
-
-// Exchange address (Hardhat Account #1) - in production, this would be a real exchange/contract address
-const EXCHANGE_ADDRESS = import.meta.env.VITE_EXCHANGE_ADDRESS || '0x70997970C51812dc3A010C7d01b50e0d17dc79C8';
 
 // Transaction status states
 type TransactionStatus = 'idle' | 'connecting' | 'sending' | 'confirming' | 'saving' | 'success' | 'error';
@@ -65,18 +60,7 @@ const CRYPTOCURRENCIES = [
 
 const BuySell = () => {
   const { user, balance } = useAuth();
-  const { 
-    balance: ethBalance, 
-    isConnected: walletConnected, 
-    address: walletAddress,
-    connect: connectWallet,
-    isConnecting: walletConnecting 
-  } = useEthereum();
-  const { sendEthAndWait } = useSendEth();
   const navigate = useNavigate();
-  
-  // Helper to check if current user is a MetaMask wallet user
-  const isMetaMaskUser = user?.email?.endsWith('@wallet.cryopay') ?? false;
   
   const [activeTab, setActiveTab] = useState('buy'); // 'buy' or 'sell'
   const [selectedCrypto, setSelectedCrypto] = useState(CRYPTOCURRENCIES[0]);
@@ -289,144 +273,27 @@ const BuySell = () => {
       return;
     }
 
-    // For SELL transactions - require wallet connection and ETH balance
+    // For SELL transactions
     if (activeTab === 'sell') {
-      // Check if selling ETH (blockchain transaction required)
-      if (selectedCrypto.code === 'ETH') {
-        // Check wallet connection (only for MetaMask users)
-        if (isMetaMaskUser && !walletConnected) {
-          setTxStatus('connecting');
-          try {
-            await connectWallet();
-          } catch (e) {
-            setTxStatus('error');
-            setTxError('Please connect your wallet to sell ETH');
-            return;
-          }
-        }
-
-        // Check ETH balance (only for MetaMask users)
-        if (isMetaMaskUser) {
-          const ethBalanceNum = ethBalance ? parseFloat(ethBalance) : 0;
-          if (ethBalanceNum < cryptoAmt) {
-            setTxStatus('error');
-            setTxError(`Insufficient ETH balance. You have ${ethBalanceNum.toFixed(6)} ETH but trying to sell ${cryptoAmt.toFixed(6)} ETH`);
-            return;
-          }
-        }
-
-        // Execute blockchain transaction
-         setTxStatus('sending');
-         try {
-           const result = await sendEthAndWait(EXCHANGE_ADDRESS, cryptoAmt.toString());
-           setTxHash(result.hash);
-           setTxStatus('confirming');
-           
-           // Record transaction on blockchain_transactions table
-           try {
-             const amountWei = (cryptoAmt * 1e18).toFixed(0); // Convert ETH to Wei
-             const recordRes = await recordTransaction({
-               to: EXCHANGE_ADDRESS,
-               amount: amountWei,
-               currency: 'ETH',
-               offChainTxHash: result.hash,
-             });
-             
-             if (!recordRes.ok) {
-               console.warn('Failed to record on blockchain_transactions:', recordRes.error);
-               // Don't fail the whole transaction just because of this
-             }
-           } catch (e) {
-             console.warn('Error recording blockchain transaction:', e);
-           }
-           
-           // Transaction confirmed - now save to database
-           const payload = await buildPayload(fiatAmount, cryptoAmt, result.hash, true);
-           await saveTransaction(payload);
-         } catch (e: any) {
-           console.error('Blockchain transaction failed:', e);
-           setTxStatus('error');
-           setTxError(e?.message || 'Blockchain transaction failed. No funds were transferred.');
-           return;
-         }
-      } else {
-        // Non-ETH crypto (BTC, SOL, etc.) - these are tracked in the database, not on-chain
-        // Use database balance for validation
-        const currentBalance = balance; // From AuthContext - calculated from all transactions
-        
-        if (currentBalance < fiatAmount) {
-          toast.error(`Insufficient balance. You have $${currentBalance.toFixed(2)} available.`, {
-            position: 'top-center',
-            autoClose: 5000,
-            theme: 'dark',
-            transition: Slide
-          });
-          return;
-        }
-        
-        const payload = await buildPayload(fiatAmount, cryptoAmt, undefined, false);
-        await saveTransaction(payload);
-      }
-    } else {
-      // BUY transaction
-      // In a real system, this would:
-      // 1. Show payment method selection (credit card, bank transfer, etc.)
-      // 2. Process payment via Stripe/PayPal/etc.
-      // 3. After payment confirmation, add crypto to user's balance
-      // For demo: We skip payment processing and directly record the purchase
-      // 
-      // IMPORTANT: When you BUY crypto, you're NOT spending from your CryoPay balance.
-      // You're paying with an external payment method (credit card, etc.).
-      // The transaction adds crypto to your balance, not deducts from it.
+      // Use database balance for validation
+      const currentBalance = balance;
       
-      if (selectedCrypto.code === 'ETH') {
-        // Check wallet connection (need address to receive ETH)
-        if (isMetaMaskUser && !walletConnected) {
-          setTxStatus('connecting');
-          try {
-            await connectWallet();
-          } catch (e) {
-            setTxStatus('error');
-            setTxError('Please connect your wallet to receive ETH');
-            return;
-          }
-        }
-        
-        if (!walletAddress) {
-          setTxStatus('error');
-          setTxError('Wallet address not available');
-          return;
-        }
-        
-        // Request exchange to send ETH to user's wallet
-        setTxStatus('sending');
-        
-        try {
-          const response = await exchangeBuy(walletAddress, cryptoAmt.toString());
-          
-          if (!response.ok || !response.data) {
-            throw new Error(response.error || 'Exchange purchase failed');
-          }
-          
-          setTxHash(response.data.txHash);
-          setTxStatus('confirming');
-          
-          // Save to database with the real transaction hash
-          const payload = await buildPayload(fiatAmount, cryptoAmt, response.data.txHash, true);
-          payload.to_user_id = user.id;
-          await saveTransaction(payload);
-          
-        } catch (e: any) {
-          console.error('Exchange purchase failed:', e);
-          setTxStatus('error');
-          setTxError(e?.message || 'Failed to complete purchase');
-          return;
-        }
-      } else {
-        // Non-ETH crypto - just record in database
-        const payload = await buildPayload(fiatAmount, cryptoAmt, undefined, false);
-        await saveTransaction(payload);
+      if (currentBalance < fiatAmount) {
+        toast.error(`Insufficient balance. You have $${currentBalance.toFixed(2)} available.`, {
+          position: 'top-center',
+          autoClose: 5000,
+          theme: 'dark',
+          transition: Slide
+        });
+        return;
       }
+      
+      const payload = await buildPayload(fiatAmount, cryptoAmt, undefined, false);
+      await saveTransaction(payload);
+    } else {
+      // BUY transaction — record in database
+      const payload = await buildPayload(fiatAmount, cryptoAmt, undefined, false);
+      await saveTransaction(payload);
     }
   };
 
@@ -532,9 +399,6 @@ const BuySell = () => {
               <div className="text-sm text-orange-200">
                 <p className="font-semibold mb-1 text-orange-300">Important Security Notice</p>
                 <p>Selling cryptocurrency requires identity verification and withdrawal limits apply. Transactions are monitored for security. You can only sell to your verified bank account or exchange wallet to prevent fraud and money laundering.</p>
-                {selectedCrypto.code === 'ETH' && (
-                  <p className="mt-2 text-orange-300 font-medium">ETH sales require a real blockchain transaction. You will be asked to confirm in your wallet.</p>
-                )}
               </div>
             </div>
           </CardContent>
@@ -722,12 +586,6 @@ const BuySell = () => {
                   <span className="text-slate-400">Transaction Fee (1%)</span>
                   <span className="font-medium text-white">{selectedCurrency.symbol}{(parseFloat(amount) * 0.01).toFixed(2)}</span>
                 </div>
-                {activeTab === 'sell' && selectedCrypto.code === 'ETH' && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-slate-400">Blockchain TX</span>
-                    <span className="font-medium text-cyan-400">Real ETH Transfer</span>
-                  </div>
-                )}
                 <div className="border-t border-white/[0.06] pt-2 flex justify-between">
                   <span className="font-semibold text-white">Total</span>
                   <span className="font-bold text-lg text-emerald-400">{selectedCurrency.symbol}{(parseFloat(amount) * 1.01).toFixed(2)}</span>
@@ -761,27 +619,6 @@ const BuySell = () => {
             <CardContent>
               <p className="text-2xl font-bold text-white">{balance ? `$${balance.toFixed(2)}` : '$0.00'}</p>
               <p className="text-sm text-slate-500 mt-1">Fiat balance</p>
-              {isMetaMaskUser && walletConnected && ethBalance && (
-                <div className="mt-3 pt-3 border-t border-white/[0.06]">
-                  <p className="text-lg font-bold text-cyan-400">{parseFloat(ethBalance).toFixed(6)} ETH</p>
-                  <p className="text-sm text-slate-500">Connected wallet</p>
-                  <p className="text-xs text-slate-600 font-mono mt-1">{walletAddress?.slice(0, 6)}...{walletAddress?.slice(-4)}</p>
-                </div>
-              )}
-              {isMetaMaskUser && !walletConnected && (
-                <div className="mt-3 pt-3 border-t border-white/[0.06]">
-                  <p className="text-sm text-slate-500 mb-2">Connect wallet for ETH trading</p>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={connectWallet}
-                    disabled={walletConnecting}
-                    className="w-full bg-white/[0.06] hover:bg-white/[0.1] text-white border-white/[0.06]"
-                  >
-                    {walletConnecting ? 'Connecting...' : 'Connect Wallet'}
-                  </Button>
-                </div>
-              )}
             </CardContent>
           </Card>
 
@@ -809,10 +646,7 @@ const BuySell = () => {
             <Card className="border-cyan-500/20 bg-cyan-500/10 backdrop-blur-xl rounded-2xl">
               <CardContent className="pt-6">
                 <p className="text-sm text-cyan-200">
-                  <strong className="text-cyan-300">Real Blockchain TX:</strong> Selling ETH will send a real transaction to the exchange address. You'll confirm this in MetaMask.
-                </p>
-                <p className="text-xs text-cyan-400 mt-2 font-mono">
-                  Exchange: {EXCHANGE_ADDRESS.slice(0, 10)}...{EXCHANGE_ADDRESS.slice(-8)}
+                  <strong className="text-cyan-300">Note:</strong> Selling ETH is recorded in the database. Crypto assets are managed by your backend wallet.
                 </p>
               </CardContent>
             </Card>
