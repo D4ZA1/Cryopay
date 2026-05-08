@@ -24,7 +24,7 @@ const coins = [
 function TrashItem({ emoji, startX, startY, scrollProgress, delay }: any) {
   // Trash falls in from 0.0 to 0.45 total
   const start = 0.0 + delay;
-  const end = 0.2 + delay; 
+  const end = 0.2 + delay;
 
   const y = useTransform(scrollProgress, [start, end], [startY, 80]); // 80 is inside the bin
   const x = useTransform(scrollProgress, [start, end], [startX, 0]);
@@ -53,7 +53,7 @@ function CoinItem({ endY, endX, scrollProgress, delay }: any) {
 
   // Fly out from inside bin (y=40, x=0)
   const y = useTransform(scrollProgress, [start, start + 0.1, end], [40, endY - 40, endY]);
-  const x = useTransform(scrollProgress, [start, end], [0, endX]); 
+  const x = useTransform(scrollProgress, [start, end], [0, endX]);
   const opacity = useTransform(scrollProgress, [start, start + 0.05, end - 0.05, end], [0, 1, 1, 0]);
   const scale = useTransform(scrollProgress, [start, start + 0.1, end], [0, 1.2, 0.8]);
 
@@ -93,7 +93,7 @@ export default function BinAnimation() {
 
   // Bin lid opens when trash falls (0 to 0.45), closes after
   const lidRotate = useTransform(scrollYProgress, [0, 0.05, 0.45, 0.5], [0, -45, -45, 0]);
-  
+
   // Bin processes the trash (0.45 to 0.55)
   const sensorScale = useTransform(scrollYProgress, [0.45, 0.5, 0.55], [1, 1.8, 1]);
   const sensorOpacity = useTransform(scrollYProgress, [0.45, 0.5, 0.55], [0.3, 1, 0.3]);
@@ -158,9 +158,9 @@ export default function BinAnimation() {
             <rect x="80" y="200" width="60" height="60" rx="6"
               fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.08)" strokeWidth="1"
             />
-            {[0,1,2,3,4].map(r => [0,1,2,3,4].map(c =>
-              (r+c) % 2 === 0 ? (
-                <rect key={`${r}${c}`} x={86+c*10} y={206+r*10} width="7" height="7" rx="1" fill="rgba(255,255,255,0.12)" />
+            {[0, 1, 2, 3, 4].map(r => [0, 1, 2, 3, 4].map(c =>
+              (r + c) % 2 === 0 ? (
+                <rect key={`${r}${c}`} x={86 + c * 10} y={206 + r * 10} width="7" height="7" rx="1" fill="rgba(255,255,255,0.12)" />
               ) : null
             ))}
             {/* Recycling symbol */}
