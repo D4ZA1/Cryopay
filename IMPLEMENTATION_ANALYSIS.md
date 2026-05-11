@@ -1,4 +1,4 @@
-# CryoPay - Exact Implementation Analysis
+# EcoVault - Exact Implementation Analysis
 
 Generated: 2025-03-29
 
@@ -8,7 +8,7 @@ Generated: 2025-03-29
 
 ### What the App Actually Does
 
-CryoPay is a **web-based cryptocurrency payment platform** that allows users to create accounts and manage transactions. It is **NOT a full-featured production payment system** but rather a **frontend + backend infrastructure for payment flows**.
+EcoVault is a **web-based cryptocurrency payment platform** that allows users to create accounts and manage transactions. It is **NOT a full-featured production payment system** but rather a **frontend + backend infrastructure for payment flows**.
 
 **Core Functionality:**
 - User registration (2 paths: custodial or non-custodial)
@@ -37,7 +37,7 @@ CryoPay is a **web-based cryptocurrency payment platform** that allows users to 
 
 ## 2. EXACT BLOCKCHAIN IMPLEMENTATION
 
-### What "Blockchain" Actually Means in CryoPay
+### What "Blockchain" Actually Means in EcoVault
 
 The term "blockchain" is **misleading**. What exists is a **simple transaction ledger**, not a real blockchain.
 
@@ -128,7 +128,7 @@ export async function createBlock(data: string, previousHash?: string | null) {
 
 ### Step 1: Landing Page (Public)
 **File:** `/src/pages/LandingPage` (not provided but referenced in `/src/App.tsx:2`)
-- Users see CryoPay landing page
+- Users see EcoVault landing page
 - Button to "Get Started" or "Sign Up"
 
 ### Step 2: Onboarding Choice (Public)
@@ -317,7 +317,7 @@ See section 2 above (BlockDataSchema).
 CREATE TABLE IF NOT EXISTS contacts (
   id BIGSERIAL PRIMARY KEY,              -- Contact ID
   user_id uuid NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,  -- Owner
-  contact_user_id uuid NULL REFERENCES profiles(id) ON DELETE SET NULL,  -- CryoPay user
+  contact_user_id uuid NULL REFERENCES profiles(id) ON DELETE SET NULL,  -- EcoVault user
   name text NOT NULL,                    -- Display name
   address text NOT NULL,                 -- Wallet address
   email text NULL,                       -- Contact email
@@ -332,7 +332,7 @@ CREATE TABLE IF NOT EXISTS contacts (
 
 **Notes:**
 - `user_id` references `profiles` (which is auth.users)
-- `contact_user_id` is nullable (contact might not be a CryoPay user)
+- `contact_user_id` is nullable (contact might not be a EcoVault user)
 - `public_key` can store contact's JWK for encryption
 
 ### 4.5 Database Relationships Diagram
@@ -413,7 +413,7 @@ blocks (global transaction ledger)
 
 ### Authentication Details
 
-**Token Storage:** `localStorage.getItem('cryopay_token')` (set by API on login/register)
+**Token Storage:** `localStorage.getItem('ecovault_token')` (set by API on login/register)
 
 **Header:** All requests include:
 ```
@@ -648,10 +648,10 @@ export async function decryptJSONWithPassword(blob: { salt, iv, ciphertext }, pa
 
 ```typescript
 // On login/register
-localStorage.setItem('cryopay_token', token);  // Line 96
+localStorage.setItem('ecovault_token', token);  // Line 96
 
 // On logout
-localStorage.removeItem('cryopay_token');  // Line 104
+localStorage.removeItem('ecovault_token');  // Line 104
 ```
 
 ### Session Initialization (on app load)
@@ -661,7 +661,7 @@ localStorage.removeItem('cryopay_token');  // Line 104
 ```typescript
 useEffect(() => {
   // 1. Check for token in localStorage
-  const storedToken = localStorage.getItem('cryopay_token');
+  const storedToken = localStorage.getItem('ecovault_token');
   if (storedToken) {
     // 2. Fetch user profile using token
     const response = await apiFetch('/api/profile');
@@ -692,7 +692,7 @@ Routes under `/dashboard`, `/transactions`, `/contacts`, etc. require valid toke
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                      CryoPay Frontend (React)                    │
+│                      EcoVault Frontend (React)                    │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                   │
 │  User Input → Components (Custodial Signup, Transactions, etc)  │
@@ -827,7 +827,7 @@ VITE_SUPABASE_ANON_KEY=eyJhbGc...
 
 ## CONCLUSION
 
-**CryoPay is:**
+**EcoVault is:**
 - A **frontend-heavy cryptocurrency application** with basic auth, wallet management, and transaction history
 - **NOT production-ready** due to missing critical features (real blockchain, payment processing, fraud detection)
 - **Not a replacement for existing payment systems** (Stripe, PayPal, etc.)

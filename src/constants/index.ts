@@ -1,5 +1,5 @@
 /**
- * CryoPay Frontend Constants (extended)
+ * EcoVault Frontend Constants (extended)
  * Centralized enums, keys, and reusable values
  */
 
@@ -121,9 +121,9 @@ export const VALIDATION = {
 
 // Local storage keys
 export const STORAGE_KEYS = {
-  AUTH_TOKEN: 'cryo_auth_token',
-  USER_DATA: 'cryo_user',
-  THEME: 'cryo_theme'
+  AUTH_TOKEN: 'ecovault_token',
+  USER_DATA: 'ecovault_user',
+  THEME: 'ecovault_theme'
 } as const;
 
 export type StorageKey = typeof STORAGE_KEYS[keyof typeof STORAGE_KEYS];

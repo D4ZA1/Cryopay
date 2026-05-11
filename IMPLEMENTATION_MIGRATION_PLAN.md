@@ -1,13 +1,13 @@
-# 🎯 CryoPay Migration Plan: Production Testing with Real Ethereum, MetaMask & Smart Contracts
+# 🎯 EcoVault Migration Plan: Production Testing with Real Ethereum, MetaMask & Smart Contracts
 
 ## Overview
-This plan migrates CryoPay from a custodial-only mock blockchain to a **real Ethereum testnet (Sepolia) integration** with **MetaMask self-custody**, **smart contracts for transaction recording**, and **proper blockchain validation**.
+This plan migrates EcoVault from a custodial-only mock blockchain to a **real Ethereum testnet (Sepolia) integration** with **MetaMask self-custody**, **smart contracts for transaction recording**, and **proper blockchain validation**.
 
 ---
 
 ## Phase 1: Smart Contract Design & Deployment
 ### 1.1 Transaction Recording Smart Contract
-**Purpose:** Record CryoPay transactions on-chain for immutability and transparency
+**Purpose:** Record EcoVault transactions on-chain for immutability and transparency
 **Contract Features:**
 - Record transaction metadata (sender, receiver, amount, description)
 - Maintain transaction history per user
@@ -18,7 +18,7 @@ This plan migrates CryoPay from a custodial-only mock blockchain to a **real Eth
 **Solidity Contract (Sepolia-ready):**
 ```solidity
 pragma solidity ^0.8.0;
-contract CryoPayTransactionRecorder {
+contract EcoVaultTransactionRecorder {
     // ============ Events ============
     event TransactionRecorded(
         address indexed from,
@@ -43,7 +43,7 @@ contract CryoPayTransactionRecorder {
     }
     // ============ Functions ============
     
-    // User registers their wallet with CryoPay
+    // User registers their wallet with EcoVault
     function registerUser() public {
         transactionCounts[msg.sender] = 0;
         emit UserRegistered(msg.sender);
@@ -152,7 +152,7 @@ contract CryoPayTransactionRecorder {
 │
 ├── /lib
 │   ├── web3.ts (NEW: wagmi/ethers setup, chain configs)
-│   ├── contractABI.ts (NEW: Import CryoPayTransactionRecorder ABI)
+│   ├── contractABI.ts (NEW: Import EcoVaultTransactionRecorder ABI)
 │   ├── ethereum.ts (NEW: RPC client, transaction submission)
 │   └── crypto.ts (EXISTING: Still used for custodial accounts)
 │
@@ -284,7 +284,7 @@ TRANSACTION_TIMEOUT_SECONDS=300
 
 ## Phase 4: Database Schema Updates
 ### 4.1 New D1 Tables
-**Table: ethereum_users (Links CryoPay users to Ethereum addresses)**
+**Table: ethereum_users (Links EcoVault users to Ethereum addresses)**
 ```sql
 CREATE TABLE ethereum_users (
   id TEXT PRIMARY KEY,          -- UUID (same as profiles.id)

@@ -1,4 +1,4 @@
-# CryoPay - README Update Summary
+# EcoVault - README Update Summary
 
 **For use in updating `/README.md` with exact, truthful information**
 
@@ -49,7 +49,7 @@ The current README makes several claims that are **not supported by actual code*
 **Contacts:**
 - Create, read, update, delete contacts
 - Store contact addresses, email, labels, and public keys
-- Link contacts to CryoPay users via user ID
+- Link contacts to EcoVault users via user ID
 
 **Profile Management:**
 - Update first name, last name, phone number
@@ -312,10 +312,10 @@ You **must build/provide**:
 ### 1. Change Overview Section
 
 **From:**
-> CryoPay is a modern, production-ready payment platform designed for seamless integration of cryptocurrency and fiat payment workflows.
+> EcoVault is a modern, production-ready payment platform designed for seamless integration of cryptocurrency and fiat payment workflows.
 
 **To:**
-> CryoPay is a frontend application demonstrating secure cryptocurrency wallet management and transaction tracking. It provides a complete onboarding flow, account management, and transaction history with client-side key encryption. **Note: This is a reference implementation, not a complete payment platform. Production use requires a implemented backend, compliance review, and security audit.**
+> EcoVault is a frontend application demonstrating secure cryptocurrency wallet management and transaction tracking. It provides a complete onboarding flow, account management, and transaction history with client-side key encryption. **Note: This is a reference implementation, not a complete payment platform. Production use requires a implemented backend, compliance review, and security audit.**
 
 ### 2. Change Features Section
 
@@ -362,7 +362,7 @@ This is a **reference implementation** and not a complete financial platform. It
 ```markdown
 ## Architecture
 
-CryoPay consists of:
+EcoVault consists of:
 
 **Frontend (Provided)**
 - React/TypeScript UI with Tailwind CSS
@@ -390,5 +390,5 @@ CryoPay consists of:
 
 ## One-Line Summary for README
 
-> **CryoPay** is a frontend reference implementation for secure cryptocurrency wallet and transaction management with ECDSA key generation, password-protected encryption, multi-factor authentication, and transaction tracking. Backend API, blockchain integration, and payment processing are not included.
+> **EcoVault** is a frontend reference implementation for secure cryptocurrency wallet and transaction management with ECDSA key generation, password-protected encryption, multi-factor authentication, and transaction tracking. Backend API, blockchain integration, and payment processing are not included.
 

@@ -1,8 +1,8 @@
 /**
- * CryoPay Frontend Types and Zod Validation Schemas
+ * EcoVault Frontend Types and Zod Validation Schemas
  * 
  * This module provides comprehensive type definitions and runtime validation
- * schemas for the CryoPay crypto wallet application.
+ * schemas for the EcoVault crypto wallet application.
  * 
  * @module types
  * @example

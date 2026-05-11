@@ -1,4 +1,4 @@
-# CryoPay - Quick Reference: What's Real vs. Marketing
+# EcoVault - Quick Reference: What's Real vs. Marketing
 
 ## TL;DR
 
@@ -128,7 +128,7 @@ DELETE /api/contacts/:id
 ### How Auth Token Works
 ```typescript
 // From /src/lib/api.ts:17-43
-const token = localStorage.getItem('cryopay_token');
+const token = localStorage.getItem('ecovault_token');
 headers.Authorization = `Bearer ${token}`;
 ```
 
@@ -251,7 +251,7 @@ All three **required**. No defaults.
 
 ## The Honest Summary
 
-**CryoPay is:**
+**EcoVault is:**
 - A well-architected React frontend
 - With secure crypto operations (real ECDSA + AES)
 - With proper auth/2FA scaffolding

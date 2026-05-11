@@ -9,7 +9,7 @@ interface ApiResponse<T = any> {
 }
 
 export async function apiFetch<T = any>(endpoint: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
-  const token = localStorage.getItem('cryopay_token');
+  const token = localStorage.getItem('ecovault_token');
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
@@ -32,7 +32,7 @@ export async function apiFetch<T = any>(endpoint: string, options: RequestInit =
 
     const data = await response.json();
     
-    // Handle backend responses with 'success' field (like MetaMask endpoints)
+    // Handle backend responses with 'success' field
     if ('success' in data) {
       if (data.success) {
         return { ok: true, data: data.data as T };
@@ -86,24 +86,6 @@ export async function searchProfile(email: string) {
 // Wallet API
 export async function getWallet() {
   return apiFetch('/api/wallet');
-}
-
-export async function verifyWallet(publicKey: string, challenge: string, signature: string) {
-  return apiFetch('/api/wallet/verify-wallet', {
-    method: 'POST',
-    body: JSON.stringify({ public_key: publicKey, challenge, signature }),
-  });
-}
-
-export async function saveWallet(publicKey: string, encryptedPrivateKey: string, verified: boolean = false) {
-  console.log('[api.ts saveWallet] publicKey:', publicKey ? '(present)' : 'empty');
-  console.log('[api.ts saveWallet] encryptedPrivateKey:', encryptedPrivateKey ? '(present)' : 'empty');
-  console.log('[api.ts saveWallet] encryptedPrivateKey type:', typeof encryptedPrivateKey);
-  console.log('[api.ts saveWallet] verified:', verified);
-  return apiFetch('/api/wallet', {
-    method: 'POST',
-    body: JSON.stringify({ public_key: publicKey, encrypted_private_key: encryptedPrivateKey, verified }),
-  });
 }
 
 // Blocks/Transactions API
@@ -206,126 +188,7 @@ export async function loginWithMfa(email: string, password: string, mfaCode: str
   });
 }
 
-// ============ Ethereum API ============
-
-/**
- * Get current gas prices
- */
-export async function getGasPrice() {
-  return apiFetch('/api/ethereum/gas-price');
-}
-
-/**
- * Get ETH balance for an address
- */
-export async function getEthBalance(address: string) {
-  return apiFetch(`/api/ethereum/balance/${address}`);
-}
-
-/**
- * Get contract ABI
- */
-export async function getContractABI() {
-  return apiFetch('/api/ethereum/contract-abi');
-}
-
-/**
- * Get contract address for current network
- */
-export async function getContractAddress() {
-  return apiFetch('/api/ethereum/contract-address');
-}
-
-/**
- * Get network info
- */
-export async function getNetworkInfo() {
-  return apiFetch('/api/ethereum/network');
-}
-
-/**
- * Check Ethereum connectivity health
- */
-export async function checkEthereumHealth() {
-  return apiFetch('/api/ethereum/health');
-}
-
-// ============ Blockchain Transactions ============
-
-/**
- * Record a transaction on-chain
- */
-export async function recordTransaction(data: {
-  to: string;
-  amount: string;
-  currency: string;
-  offChainTxHash: string;
-  signature?: string;
-}) {
-  return apiFetch('/api/blockchain/record', {
-    method: 'POST',
-    body: JSON.stringify(data),
-  });
-}
-
-/**
- * Get transaction status
- */
-export async function getTransactionStatus(txHash: string) {
-  return apiFetch(`/api/blockchain/status/${txHash}`);
-}
-
-/**
- * Get user's blockchain transactions
- */
-export async function getBlockchainTransactions(limit = 20, offset = 0) {
-  return apiFetch(`/api/blockchain/transactions?limit=${limit}&offset=${offset}`);
-}
-
-/**
- * Get transactions from smart contract
- */
-export async function getContractTransactions(limit = 10, offset = 0) {
-  return apiFetch(`/api/blockchain/contract-transactions?limit=${limit}&offset=${offset}`);
-}
-
-/**
- * Sync transactions from blockchain
- */
-export async function syncBlockchainTransactions() {
-  return apiFetch('/api/blockchain/sync', {
-    method: 'POST',
-  });
-}
-
-/**
- * Get real transaction history from Etherscan
- */
-export async function getTransactionHistory(limit = 20, page = 1) {
-  return apiFetch(`/api/blockchain/history?limit=${limit}&page=${page}`);
-}
-
-// ============ Exchange API ============
-
-/**
- * Exchange buy - request the exchange to send ETH to user's wallet
- */
-export async function exchangeBuy(recipientAddress: string, amount: string): Promise<ApiResponse<{
-  txHash: string;
-  from: string;
-  to: string;
-  amount: string;
-  amountWei: string;
-  blockNumber?: number;
-  status: string;
-}>> {
-  return apiFetch('/api/exchange/buy', {
-    method: 'POST',
-    body: JSON.stringify({ recipientAddress, amount }),
-  });
-}
-
-// ============ Recycle / GreenCryoPay API ============
+// ============ Recycle / GreenEcoVault API ============
 
 export async function submitQrScan(qrString: string) {
   return apiFetch('/api/recycle/scan', {

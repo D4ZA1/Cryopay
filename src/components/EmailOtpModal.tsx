@@ -48,7 +48,7 @@ const EmailOtpModal = ({ isOpen, onClose, userEmail, onVerified }: EmailOtpModal
   const checkSession = async () => {
     try {
       // Check if we have a token in localStorage (set by the Worker API after magic link is clicked)
-      const token = localStorage.getItem('cryopay_token');
+      const token = localStorage.getItem('ecovault_token');
       if (token) {
         // Avoid multiple invocations if polling races
         if (doneRef.current) return;
@@ -124,7 +124,7 @@ const EmailOtpModal = ({ isOpen, onClose, userEmail, onVerified }: EmailOtpModal
         </DialogHeader>
         <div className="flex flex-col items-center gap-4 py-4">
           <div className="w-full space-y-2">
-            <p className="text-sm text-slate-600 text-center">Check your inbox for an email from CryoPay. If you don't see it, check your spam folder.</p>
+            <p className="text-sm text-slate-600 text-center">Check your inbox for an email from EcoVault. If you don't see it, check your spam folder.</p>
             {lastSentAt && <p className="text-xs text-slate-400 text-center">Last sent: {new Date(lastSentAt).toLocaleTimeString()}</p>}
             {error && <p className="text-sm text-red-600 text-center">{error}</p>}
           </div>

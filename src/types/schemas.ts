@@ -436,7 +436,7 @@ export const ContactInputSchema = z.object({
   label: z.string().optional().nullable(),
   /** Contact's public key (JSON string) */
   public_key: z.string().optional().nullable(),
-  /** Contact's user ID if they're a CryoPay user */
+  /** Contact's user ID if they're a EcoVault user */
   contact_user_id: z.string().uuid().optional().nullable(),
 });
 
@@ -464,7 +464,7 @@ export const ContactOutputSchema = z.object({
   id: z.number(),
   /** User ID who owns this contact */
   user_id: z.string().uuid(),
-  /** Contact's user ID if they're a CryoPay user */
+  /** Contact's user ID if they're a EcoVault user */
   contact_user_id: z.string().uuid().nullable(),
   /** Contact's display name */
   name: z.string(),

@@ -1,4 +1,4 @@
-# CryoPay
+# EcoVault
 
 [![Cloudflare Workers](https://img.shields.io/badge/Cloudflare-Workers-F38020?logo=cloudflare&logoColor=white)](https://workers.cloudflare.com/)
 [![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white)](https://react.dev/)
@@ -20,7 +20,7 @@ A complete cryptocurrency payment platform with a modern React frontend, Cloudfl
 - [Project Structure](#project-structure)
 - [Smart Contract](#smart-contract)
 - [Backend (cryo-worker)](#backend-cryo-worker)
-- [Frontend (Cryopay)](#frontend-cryopay)
+- [Frontend (EcoVault)](#frontend-ecovault)
 - [Environment Variables](#environment-variables)
 - [Setup Instructions](#setup-instructions)
 - [Testing](#testing)
@@ -33,7 +33,7 @@ A complete cryptocurrency payment platform with a modern React frontend, Cloudfl
 
 ## Overview
 
-CryoPay is a full-stack cryptocurrency payment solution consisting of three main components:
+EcoVault is a full-stack cryptocurrency payment solution consisting of three main components:
 
 | Component | Technology | Purpose |
 |-----------|------------|---------|
@@ -61,7 +61,7 @@ CryoPay is a full-stack cryptocurrency payment solution consisting of three main
 │  │                     │    │  └───────────────┘  │    │        │        │  │
 │  │  ┌───────────────┐  │    │         │          │    │        │        │  │
 │  │  │    wagmi +    │  │    │  ┌───────────────┐  │    │  ┌───────────┐  │  │
-│  │  │     viem      │──┼────┼──│   D1 SQLite   │  │    │  │  CryoPay  │  │  │
+│  │  │     viem      │──┼────┼──│   D1 SQLite   │  │    │  │  EcoVault  │  │  │
 │  │  │   (Web3)      │  │    │  │   Database    │  │    │  │ Contract  │  │  │
 │  │  └───────────────┘  │    │  └───────────────┘  │    │  └───────────┘  │  │
 │  │                     │    │                     │    │                 │  │
@@ -80,7 +80,7 @@ CryoPay is a full-stack cryptocurrency payment solution consisting of three main
 │  │   ├─────────────────────────┤      ├─────────────────────────────────┤  │
 │  │   │ • Email/Password Auth  │      │ • Wallet Signature Auth         │  │
 │  │   │ • JWK Public Keys      │      │ • Ethereum Address (0x...)      │  │
-│  │   │ • PBKDF2 Password Hash │      │ • Email: {addr}@wallet.cryopay  │  │
+│  │   │ • PBKDF2 Password Hash │      │ • Email: {addr}@wallet.ecovault  │  │
 │  │   │ • Optional TOTP MFA    │      │ • No Password Required          │  │
 │  │   └─────────────────────────┘      └─────────────────────────────────┘  │
 │  │                                                                         │
@@ -121,7 +121,7 @@ CryoPay is a full-stack cryptocurrency payment solution consisting of three main
 
 ```
 project/
-├── Cryopay/                      # Frontend Application
+├── EcoVault/                      # Frontend Application
 │   ├── src/
 │   │   ├── components/           # Reusable UI components
 │   │   │   ├── ui/               # Radix UI primitives
@@ -203,11 +203,11 @@ project/
 │
 └── contracts/                    # Smart Contracts
     ├── contracts/
-    │   └── CryoPayTransactionRecorder.sol
+    │   └── EcoVaultTransactionRecorder.sol
     ├── test/                     # Contract tests
     ├── ignition/                 # Hardhat Ignition modules
     │   └── modules/
-    │       └── CryoPayTransactionRecorder.cts
+    │       └── EcoVaultTransactionRecorder.cts
     ├── abi/                      # Generated ABIs
     ├── artifacts/                # Compiled contracts
     ├── typechain-types/          # TypeScript bindings
@@ -220,13 +220,13 @@ project/
 
 ## Smart Contract
 
-### CryoPayTransactionRecorder
+### EcoVaultTransactionRecorder
 
-**Purpose**: Records CryoPay transactions on-chain for immutability and transparency.
+**Purpose**: Records EcoVault transactions on-chain for immutability and transparency.
 
 | Property | Value |
 |----------|-------|
-| **Contract Name** | CryoPayTransactionRecorder |
+| **Contract Name** | EcoVaultTransactionRecorder |
 | **Solidity Version** | ^0.8.28 |
 | **License** | MIT |
 
@@ -241,7 +241,7 @@ project/
 
 | Function | Type | Description |
 |----------|------|-------------|
-| `registerUser()` | Write | Register the caller as a CryoPay user |
+| `registerUser()` | Write | Register the caller as a EcoVault user |
 | `recordTransaction(to, amount, currency, txHash)` | Write | Record a single transaction on-chain |
 | `recordBatchTransactions(recipients[], amounts[], currencies[], txHashes[])` | Write | Record multiple transactions in one call (gas efficient) |
 | `getTransactionCount(user)` | Read | Get number of transactions for a user |
@@ -271,11 +271,11 @@ event UserRegistered(address indexed user);
 pragma solidity ^0.8.28;
 
 /**
- * @title CryoPayTransactionRecorder
- * @notice Records CryoPay transactions on-chain for immutability and transparency
+ * @title EcoVaultTransactionRecorder
+ * @notice Records EcoVault transactions on-chain for immutability and transparency
  * @dev Deployed on Sepolia testnet for testing
  */
-contract CryoPayTransactionRecorder {
+contract EcoVaultTransactionRecorder {
     // ============ Events ============
     event TransactionRecorded(
         address indexed from,
@@ -304,7 +304,7 @@ contract CryoPayTransactionRecorder {
     // ============ Functions ============
 
     /**
-     * @notice Register a user with CryoPay
+     * @notice Register a user with EcoVault
      * @dev Emits UserRegistered event
      */
     function registerUser() external {
@@ -482,7 +482,7 @@ contract CryoPayTransactionRecorder {
 
 ---
 
-## Frontend (Cryopay)
+## Frontend (EcoVault)
 
 ### Technology Stack
 
@@ -651,7 +651,7 @@ pnpm deploy
 
 ```bash
 # Navigate to frontend directory
-cd Cryopay
+cd EcoVault
 
 # Install dependencies
 npm install
@@ -702,7 +702,7 @@ pnpm test
 ### Frontend
 
 ```bash
-cd Cryopay
+cd EcoVault
 npm test          # Run once
 npm run test:watch # Watch mode
 ```
@@ -915,7 +915,7 @@ npm run test:watch # Watch mode
 
 ### WebCrypto API Implementation
 
-CryoPay uses the WebCrypto API for all cryptographic operations, ensuring compatibility with Cloudflare Workers and browser environments.
+EcoVault uses the WebCrypto API for all cryptographic operations, ensuring compatibility with Cloudflare Workers and browser environments.
 
 | Algorithm | Purpose | Parameters |
 |-----------|---------|------------|
@@ -938,9 +938,9 @@ CryoPay uses the WebCrypto API for all cryptographic operations, ensuring compat
 
 ### User Type Identification
 
-1. **MetaMask users** are identified by email ending with `@wallet.cryopay`
-2. Email format: `{ethereum_address}@wallet.cryopay`
-3. Example: `0x1234...abcd@wallet.cryopay`
+1. **MetaMask users** are identified by email ending with `@wallet.ecovault`
+2. Email format: `{ethereum_address}@wallet.ecovault`
+3. Example: `0x1234...abcd@wallet.ecovault`
 
 ### Database Key Structure
 
