@@ -37,7 +37,7 @@ export default function BinsAdmin() {
   const [locationName, setLocationName] = useState('');
   const [lat, setLat] = useState('');
   const [lng, setLng] = useState('');
-  const [materials, setMaterials] = useState('');
+  const [material, setMaterial] = useState('plastic');
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [created, setCreated] = useState<CreatedBin | null>(null);
@@ -103,9 +103,7 @@ export default function BinsAdmin() {
     const body: Record<string, any> = { location_name: locationName.trim() };
     if (lat) body.location_lat = parseFloat(lat);
     if (lng) body.location_lng = parseFloat(lng);
-    if (materials.trim()) {
-      body.supported_materials = materials.split(',').map((m) => m.trim()).filter(Boolean);
-    }
+    body.supported_materials = [material];
 
     const res = await apiFetch('/api/bins', {
       method: 'POST',
@@ -126,7 +124,7 @@ export default function BinsAdmin() {
       setLocationName('');
       setLat('');
       setLng('');
-      setMaterials('');
+      setMaterial('plastic');
       fetchBins(true);
     } else {
       setFormError(res.error ?? 'Failed to register bin');
@@ -269,14 +267,18 @@ export default function BinsAdmin() {
                 </div>
 
                 <div>
-                  <label className="text-white/50 text-xs mb-1 block">Supported Materials (comma-separated, optional)</label>
-                  <input
-                    type="text"
+                  <label className="text-white/50 text-xs mb-1 block">Material Type</label>
+                  <select
                     className={inputClass}
-                    placeholder="plastic, glass, paper"
-                    value={materials}
-                    onChange={(e) => setMaterials(e.target.value)}
-                  />
+                    value={material}
+                    onChange={(e) => setMaterial(e.target.value)}
+                  >
+                    {['plastic', 'glass', 'paper', 'metal', 'ewaste'].map((m) => (
+                      <option key={m} value={m} className="bg-slate-900 capitalize">
+                        {m.charAt(0).toUpperCase() + m.slice(1)}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 {formError && (

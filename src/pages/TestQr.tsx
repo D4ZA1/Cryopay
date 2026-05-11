@@ -7,7 +7,7 @@ import { apiFetch } from '@/lib/api';
 interface Bin {
   bin_id: string;
   location_name: string | null;
-  supported_materials: string | null;
+  supported_materials: string | string[] | null;
   is_active: number;
 }
 
@@ -42,11 +42,24 @@ export default function TestQr() {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
+    const parseMaterials = (raw: any): string[] => {
+      if (Array.isArray(raw)) return raw;
+      if (typeof raw === 'string' && raw) {
+        try { return JSON.parse(raw); } catch { return []; }
+      }
+      return [];
+    };
+
     apiFetch('/api/bins').then((res) => {
       if (res.ok) {
         const b: Bin[] = (res.data as any)?.bins ?? [];
-        setBins(b.filter((x) => x.is_active));
-        if (b.length > 0) setSelectedBin(b[0].bin_id);
+        const activeBins = b.filter((x) => x.is_active);
+        setBins(activeBins);
+        if (activeBins.length > 0) {
+          setSelectedBin(activeBins[0].bin_id);
+          const mats = parseMaterials(activeBins[0].supported_materials);
+          setMaterial(mats[0] ?? 'plastic');
+        }
       }
     }).finally(() => setBinsLoading(false));
   }, []);
@@ -109,7 +122,24 @@ export default function TestQr() {
             ) : (
               <select
                 value={selectedBin}
-                onChange={(e) => setSelectedBin(e.target.value)}
+                onChange={(e) => {
+                  const binId = e.target.value;
+                  setSelectedBin(binId);
+                  const bin = bins.find((b) => b.bin_id === binId);
+                  if (bin) {
+                    const parseMaterials = (raw: any): string[] => {
+                      if (Array.isArray(raw)) return raw;
+                      if (typeof raw === 'string' && raw) {
+                        try { return JSON.parse(raw); } catch { return []; }
+                      }
+                      return [];
+                    };
+                    const mats = parseMaterials(bin.supported_materials);
+                    setMaterial(mats[0] ?? 'plastic');
+                  }
+                  setGenerated(false);
+                  setQrData(null);
+                }}
                 className="w-full bg-slate-800 border border-white/[0.08] rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-emerald-500/50"
               >
                 {bins.map((b) => (
@@ -121,25 +151,15 @@ export default function TestQr() {
             )}
           </div>
 
-          {/* Material */}
-          <div>
-            <label className="block text-sm text-slate-400 mb-2">Material type</label>
-            <div className="flex flex-wrap gap-2">
-              {MATERIALS.map((m) => (
-                <button
-                  key={m}
-                  onClick={() => setMaterial(m)}
-                  className={`px-4 py-2 rounded-xl text-sm font-medium border transition-all capitalize ${
-                    material === m
-                      ? 'bg-emerald-500 border-emerald-500 text-white'
-                      : 'bg-white/[0.04] border-white/[0.08] text-slate-400 hover:text-white'
-                  }`}
-                >
-                  {m}
-                </button>
-              ))}
+          {/* Material badge (read-only, derived from bin) */}
+          {selectedBin && (
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-slate-400">Material:</span>
+              <span className="px-3 py-1 rounded-full text-sm font-medium bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 capitalize">
+                {material}
+              </span>
             </div>
-          </div>
+          )}
 
           {/* Weight */}
           <div>
