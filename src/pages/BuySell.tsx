@@ -168,14 +168,25 @@ const BuySell = () => {
   }, [activeTab]);
 
   // Helper function to get USD conversion rate
+  // Hardcoded fallback rates (currency → USD) used only when all live APIs fail
+  const FIAT_TO_USD_FALLBACK: Record<string, number> = {
+    INR: 1 / 83.5,
+    EUR: 1 / 0.92,
+    GBP: 1 / 0.79,
+    JPY: 1 / 154.5,
+    AUD: 1 / 1.53,
+    USD: 1,
+    USDT: 1,
+  };
+
   const getUSDRateForCurrency = async (fromCurrency: string): Promise<number> => {
     if (fromCurrency === 'USD' || fromCurrency === 'USDT') return 1;
     try {
       const result = await getUSDRate(fromCurrency);
       return result.price;
     } catch (e) {
-      console.warn('Failed to fetch USD rate:', e);
-      return 1; // Fallback
+      console.warn('Failed to fetch USD rate, using hardcoded fallback:', e);
+      return FIAT_TO_USD_FALLBACK[fromCurrency.toUpperCase()] ?? 1;
     }
   };
 

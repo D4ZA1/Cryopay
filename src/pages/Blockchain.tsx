@@ -1,7 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Database, RefreshCw, ChevronDown, ChevronUp, Copy, CheckCheck, ArrowRightLeft, Boxes, Hash, Clock, Link, AlertCircle } from 'lucide-react';
-
-const WORKER_URL = import.meta.env.VITE_WORKER_URL ?? 'https://cryo-worker.jaswanthwork84-cc7.workers.dev';
+import { apiFetch } from '../lib/api';
 
 interface BlockchainTransaction {
   id: number;
@@ -310,16 +309,13 @@ const Blockchain: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${WORKER_URL}/api/blocks`, {
-        headers: { 'Content-Type': 'application/json' },
-      });
-      const json = await res.json();
-      if (!res.ok || !json.ok) {
-        setError(json.error ?? 'Failed to fetch blocks');
+      const res = await apiFetch('/api/blocks');
+      if (!res.ok) {
+        setError(res.error ?? 'Failed to fetch blocks');
         setBlocks([]);
       } else {
-        setBlocks(json.blocks ?? []);
-        setStats(json.stats ?? null);
+        setBlocks((res.data as any)?.blocks ?? []);
+        setStats((res.data as any)?.stats ?? null);
         setLastRefreshed(new Date());
       }
     } catch (e) {

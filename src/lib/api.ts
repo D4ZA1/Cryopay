@@ -1,7 +1,18 @@
 import { parseApiError } from "@/utils/errorUtils";
 
 const WORKER_URL = import.meta.env.VITE_WORKER_URL;
-  
+
+// ── DEBUG: log the resolved worker URL on startup ──────────────────────────
+console.log(
+  '%c[api.ts] WORKER_URL resolved to:',
+  'color: #00bcd4; font-weight: bold',
+  WORKER_URL || '⚠️  UNDEFINED – VITE_WORKER_URL is not set!'
+);
+if (!WORKER_URL) {
+  console.error('[api.ts] VITE_WORKER_URL is undefined. Check that .env is correct and the dev server was restarted.');
+}
+// ───────────────────────────────────────────────────────────────────────────
+
 interface ApiResponse<T = any> {
   ok: boolean;
   data?: T;
@@ -19,6 +30,7 @@ export async function apiFetch<T = any>(endpoint: string, options: RequestInit =
   Object.assign(headers, options.headers);
 
   try {
+    console.log(`%c[apiFetch] → ${options.method || 'GET'} ${WORKER_URL}${endpoint}`, 'color: #8bc34a');
     const response = await fetch(`${WORKER_URL}${endpoint}`, {
       ...options,
       headers,
