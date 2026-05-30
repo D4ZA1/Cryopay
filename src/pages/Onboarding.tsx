@@ -3,7 +3,9 @@ import { motion } from 'framer-motion';
 import { Button } from "@/components/ui/button";
 import { Cloud, KeyRound, CheckCircle2, XCircle } from 'lucide-react';
 
-const CryoPayLogo = () => ( <div className="text-2xl font-bold tracking-tighter">Cryo<span className="text-slate-500">Pay</span></div> );
+const CryoPayLogo = () => (
+  <div className="text-2xl font-bold tracking-tighter">Cryo<span className="text-slate-500">Pay</span></div>
+);
 
 const ChoiceCard = ({ icon, title, tagline, label, description, advantages, disadvantages, buttonText, to }) => (
   <motion.div

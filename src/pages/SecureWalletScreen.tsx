@@ -4,12 +4,16 @@ import { Button } from "@/components/ui/button";
 // Checkbox UI removed (wallet DB persistence disabled)
 import { Label } from "@/components/ui/label";
 import { ShieldAlert, Copy, Eye, QrCode, MessageSquare } from 'lucide-react';
-import { supabase } from '../supabase';
+import { apiFetch, getProfile, saveWallet } from '../lib/api';
 import { useEffect } from 'react';
 import { generateKeyPair, exportJwk, jwkThumbprint, encryptJwkWithPassword } from '../lib/crypto';
-// Auth handled via Supabase; no direct context usage required here
+import { getErrorMessage } from '@/lib/utils';
 
-const CryoPayLogo = () => ( <div className="text-2xl font-bold tracking-tighter">Cryo<span className="text-slate-500">Pay</span></div> );
+const CryoPayLogo = () => (
+  <div className="text-2xl font-bold tracking-tighter">Cryo<span className="text-slate-500">Pay</span></div>
+);
+
+// Auth handled via Worker API
 
 const SecureWalletScreen = () => {
   const navigate = useNavigate();
@@ -18,6 +22,13 @@ const SecureWalletScreen = () => {
   const incomingFirstName = (location.state as any)?.firstName;
   const incomingLastName = (location.state as any)?.lastName;
   const initialToken = (location.state as any)?.initialToken;
+
+  // Store initialToken from signup flow into localStorage
+  useEffect(() => {
+    if (initialToken) {
+      localStorage.setItem('cryopay_token', initialToken);
+    }
+  }, [initialToken]);
 
   const [privateKeyRevealed, setPrivateKeyRevealed] = useState(false);
   const [encryptionPassword, setEncryptionPassword] = useState('');
@@ -37,13 +48,14 @@ const SecureWalletScreen = () => {
     (async () => {
       if (!incomingFirstName && !incomingLastName) return;
       try {
-        const { data } = await supabase.auth.getSession();
-        const session = (data as any)?.session;
-        if (session) {
+        const token = localStorage.getItem('cryopay_token');
+        if (token) {
           console.log('[SecureWallet] saving incoming profile metadata');
-          // @ts-ignore
-          const { error } = await supabase.auth.updateUser({ user_metadata: { firstName: incomingFirstName, lastName: incomingLastName } });
-          if (error) console.warn('[SecureWallet] updateUser metadata warning', error);
+          const updateRes = await apiFetch('/api/profile', {
+            method: 'PUT',
+            body: JSON.stringify({ first_name: incomingFirstName, last_name: incomingLastName }),
+          });
+          if (!updateRes.ok) console.warn('[SecureWallet] updateUser metadata warning', updateRes.error);
         } else {
           console.log('[SecureWallet] no active session; metadata should already be set by signUp if supported');
         }
@@ -132,26 +144,58 @@ const SecureWalletScreen = () => {
   // Email magic-link option removed; TOTP is optional. Allow finish without MFA.
 
   const handleFinish = async () => {
+    // Validate that encryption password is provided before proceeding
+    if (!encryptionPassword) {
+      setError('Please enter an encryption password to secure your private key before proceeding');
+      return;
+    }
+    
+    if (!generatedPrivateJwk) {
+      setError('No private key available. Please refresh the page and try again.');
+      return;
+    }
+    
     try {
-      // Persist the public key into auth.user_metadata so it's discoverable via getUser
+      // Get current user from profile API
       let userId: string | null = null;
       try {
-        // Try get current user
-        const { data: userData } = await supabase.auth.getUser();
-        userId = (userData as any)?.user?.id || null;
+        const profRes = await getProfile();
+        userId = profRes.data?.profile?.id || null;
       } catch (err) {
-        console.warn('getUser failed', err);
+        console.warn('getProfile failed', err);
       }
 
       if (generatedPublicJwk) {
-        // store thumbprint inside the public_key JSON so downstream lookups can use it
+        // Store thumbprint inside the public_key JSON so downstream lookups can use it
         const publicKeyWithThumb = { jwk: generatedPublicJwk, thumbprint: displayAddress };
-        // @ts-ignore
-        const { error: updErr } = await supabase.auth.updateUser({ user_metadata: { public_key: publicKeyWithThumb } });
-        if (updErr) console.warn('failed to persist public key to user metadata', updErr);
+        // Update profile with public key and encrypted private key
+        let encryptedPrivateKey: string | undefined;
+        if (generatedPrivateJwk && encryptionPassword) {
+          try {
+            const encrypted = await encryptJwkWithPassword(generatedPrivateJwk, encryptionPassword);
+            encryptedPrivateKey = JSON.stringify(encrypted);
+          } catch (e) {
+            console.warn('encrypt private jwk for profile failed', e);
+            setError('Failed to encrypt private key. Please try again.');
+            return;
+          }
+        }
+         const updErr = await apiFetch('/api/profile', {
+           method: 'PUT',
+           body: JSON.stringify({ 
+             public_key: JSON.stringify(publicKeyWithThumb),
+             encrypted_private_key: encryptedPrivateKey
+           }),
+         });
+          console.log('[SecureWallet] profile update result:', updErr);
+          if (!updErr.ok) {
+            console.warn('failed to persist keys to profile', updErr.error);
+            setError('Failed to save wallet to profile: ' + getErrorMessage(updErr.error));
+            return;
+          }
       }
 
-      // Also upsert into `profiles` so other users can discover public_key by email
+      // Also save to wallet table so other users can discover public_key by email
       if (userId) {
         try {
           let encryptedPrivate: any = null;
@@ -163,14 +207,15 @@ const SecureWalletScreen = () => {
             }
           }
 
-          const profileUpsert: any = { id: userId };
-          if (generatedPublicJwk) profileUpsert.public_key = { jwk: generatedPublicJwk, thumbprint: displayAddress };
-          if (encryptedPrivate) profileUpsert.encrypted_private_key = encryptedPrivate;
-
-          const { error: profErr } = await supabase.from('profiles').upsert([profileUpsert]);
-          if (profErr) console.warn('profiles upsert failed', profErr);
+          const publicKeyStr = generatedPublicJwk ? JSON.stringify({ jwk: generatedPublicJwk, thumbprint: displayAddress }) : undefined;
+          const walletRes = await saveWallet(publicKeyStr || '', encryptedPrivate ? JSON.stringify(encryptedPrivate) : '', false);
+          console.log('[SecureWallet] wallet save result:', walletRes);
+          if (!walletRes.ok) {
+            console.warn('wallet save failed', walletRes.error);
+            // Note: We continue even if wallet save fails, as profile update succeeded
+          }
         } catch (e) {
-          console.warn('profiles upsert unexpected error', e);
+          console.warn('wallet save unexpected error', e);
         }
       } else if ((location.state as any)?.email) {
         // No authenticated user id available (likely email-confirm flow). Try to persist by email
@@ -184,20 +229,26 @@ const SecureWalletScreen = () => {
             }
           }
 
+          const publicKeyStr = generatedPublicJwk ? JSON.stringify({ jwk: generatedPublicJwk, thumbprint: displayAddress }) : undefined;
           const profileUpsertByEmail: any = { email: (location.state as any).email };
           if (generatedPublicJwk) profileUpsertByEmail.public_key = { jwk: generatedPublicJwk, thumbprint: displayAddress };
           if (encryptedPrivate) profileUpsertByEmail.encrypted_private_key = encryptedPrivate;
 
-          const { error: profErr } = await supabase.from('profiles').upsert([profileUpsertByEmail]);
-          if (profErr) console.warn('profiles upsert by email failed', profErr);
+          const profileRes = await apiFetch('/api/profile', {
+            method: 'POST',
+            body: JSON.stringify(profileUpsertByEmail),
+          });
+          if (!profileRes.ok) console.warn('profile upsert by email failed', profileRes.error);
         } catch (e) {
-          console.warn('[SecureWallet] profiles upsert by email unexpected error', e);
+          console.warn('[SecureWallet] profile upsert by email unexpected error', e);
         }
       } else {
         console.warn('[SecureWallet] no user id available and no email in state; profiles not upserted');
       }
     } catch (e) {
       console.warn('persist public key failed', e);
+      setError('Failed to save wallet. Please try again.');
+      return;
     }
     navigate('/dashboard');
   };
@@ -252,8 +303,15 @@ const SecureWalletScreen = () => {
                     </div>
                     {/* Server-side wallet storage removed; user handles backups locally */}
                     <div>
-                      <Label className="block text-sm">Optional: encryption password to store the private key encrypted</Label>
-                      <input type="password" value={encryptionPassword} onChange={e => setEncryptionPassword(e.target.value)} className="mt-1 block w-full rounded border px-3 py-2" placeholder="Choose a password to encrypt your private key (recommended)" />
+                      <Label className="block text-sm font-semibold text-red-600">* Encryption password required to store the private key encrypted</Label>
+                      <input 
+                        type="password" 
+                        value={encryptionPassword} 
+                        onChange={e => setEncryptionPassword(e.target.value)} 
+                        className="mt-1 block w-full rounded border px-3 py-2 border-red-300 focus:border-red-500 focus:ring-1 focus:ring-red-500" 
+                        placeholder="Enter a password to encrypt your private key (REQUIRED)" 
+                        required
+                      />
                     </div>
                     <div className="flex gap-2">
                       <button onClick={handleDownloadEncryptedBackup} className="btn btn-outline">Download Encrypted Backup</button>

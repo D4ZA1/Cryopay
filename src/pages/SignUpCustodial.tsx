@@ -5,9 +5,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Mail, Lock, Eye, EyeOff, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
-import { supabase } from '../supabase';
+import { apiFetch } from '../lib/api';
+import { getErrorMessage } from '@/lib/utils';
 
-const CryoPayLogo = () => ( <div className="text-2xl font-bold tracking-tighter">Cryo<span className="text-slate-500">Pay</span></div> );
+const CryoPayLogo = () => (
+  <div className="text-2xl font-bold tracking-tighter">Cryo<span className="text-slate-500">Pay</span></div>
+);
+
 const PasswordRequirement = ({ met, text }: { met: boolean; text: string }) => ( <div className={`flex items-center text-sm ${met ? 'text-green-600' : 'text-slate-500'}`}>{met ? <CheckCircle2 className="h-4 w-4 mr-2" /> : <XCircle className="h-4 w-4 mr-2" />}{text}</div> );
 
 const SignUpCustodial = () => {
@@ -38,78 +42,29 @@ const SignUpCustodial = () => {
     setError('');
     console.log("Submitting form with data:", { firstName, lastName, email });
 
-      try {
-        console.log('[SignUpCustodial] calling supabase.auth.signUp with metadata');
-        // Try to include user metadata during sign up so details appear on Supabase Users page.
-        // supabase.auth.signUp may accept a second argument with user metadata depending on SDK version.
-        // We'll pass metadata as the second arg and also fall back to updating the user if a session is returned.
-    const signUpPayload: any = { email, password, options: { data: { firstName, lastName } } };
-
-    const { data, error } = await supabase.auth.signUp(signUpPayload);
-      if (error) {
-        console.error('[SignUpCustodial] signUp error', error);
-        throw error;
-      }
-
-        console.log('[SignUpCustodial] signUp success', data);
-        // Attempt to create initial rows in `profiles` and `wallets` so the user
-        // has a profile record and a placeholder wallet row. If the SDK returns
-        // a user id immediately, persist; otherwise this may be completed later
-        // (for example after email confirmation) by an edge function.
-        try {
-          // Try to determine the new user's id
-          let newUserId: string | null = null;
-          // data may include session.user depending on SDK/version
-          if ((data as any)?.user?.id) newUserId = (data as any).user.id;
-          // if session is present, pull user from there
-          if (!newUserId && (data as any)?.session?.user?.id) newUserId = (data as any).session.user.id;
-          // fallback: call getUser
-          if (!newUserId) {
-            const { data: fetched } = await supabase.auth.getUser();
-            newUserId = (fetched as any)?.user?.id || null;
-          }
-
-          if (newUserId) {
-            // Upsert profile row
-            const { error: profErr } = await supabase.from('profiles').upsert([
-              { id: newUserId, first_name: firstName, last_name: lastName, email }
-            ]);
-            if (profErr) console.warn('[SignUpCustodial] profiles upsert warning', profErr);
-
-            // Insert a placeholder wallets row (public_key will be populated when user finishes secure-wallet)
-            const { error: walletErr } = await supabase.from('wallets').upsert([
-              { user_id: newUserId, public_key: null, encrypted_private_key: null, verified: false }
-            ]);
-            if (walletErr) console.warn('[SignUpCustodial] wallets upsert warning', walletErr);
-          } else {
-            console.log('[SignUpCustodial] no user id available yet; profiles/wallets insert deferred');
-          }
-        } catch (e) {
-          console.warn('[SignUpCustodial] failed to create profiles/wallets rows', e);
-        }
-        // Supabase may send a confirmation email. If a session was returned, we can also update user metadata
-        // via updateUser to ensure the details are stored.
-        const initialToken = (data?.session as any)?.access_token || null;
-        if (initialToken) {
-          try {
-            // @ts-ignore
-            const { error: updErr } = await supabase.auth.updateUser({ user_metadata: { firstName, lastName } });
-            if (updErr) console.warn('[SignUpCustodial] updateUser metadata warning', updErr);
-          } catch (e) {
-            console.warn('[SignUpCustodial] could not update user metadata after signup', e);
-          }
-        } else {
-          // If no session returned (email confirmation flow), metadata should have been set during signUp above.
-          // If your Supabase SDK doesn't support metadata in signUp, consider saving these to a `profiles` table
-          // in the database (via anon client or Edge Function) keyed by email.
-        }
-  // Always navigate to secure-wallet and pass collected profile info so it can be saved there if needed.
-  navigate('/secure-wallet', { state: { walletAddress: null, privateKey: null, email, firstName, lastName, initialToken } });
+    try {
+      console.log('[SignUpCustodial] calling Worker API /api/auth/register');
+      const response = await apiFetch('/api/auth/register', {
+        method: 'POST',
+        body: JSON.stringify({ email, password, first_name: firstName, last_name: lastName }),
+      });
       
-    } catch (err: any) {
-      console.error("Signup fetch error:", err);
-      setError(err.message || 'An unknown error occurred.');
-    } finally {
+       if (!response.ok) {
+         console.error('[SignUpCustodial] register error', response.error);
+         throw new Error(getErrorMessage(response.error || 'Registration failed'));
+       }
+      
+      console.log('[SignUpCustodial] register success', response.data);
+      const { token, user } = response.data;
+      
+      // Worker API handles profile and wallet creation automatically
+      // Navigate to secure-wallet with the user info
+      navigate('/secure-wallet', { state: { walletAddress: null, privateKey: null, email, firstName, lastName, initialToken: token } });
+
+     } catch (err: any) {
+       console.error("Signup fetch error:", err);
+       setError(getErrorMessage(err));
+     } finally {
       setIsLoading(false);
     }
   };

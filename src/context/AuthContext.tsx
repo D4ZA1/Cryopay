@@ -1,6 +1,6 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../supabase';
+import { apiFetch } from '../lib/api';
 import { clearSymKey } from '../lib/symmetricSession';
 
 // Define the shape of your user and auth context
@@ -39,23 +39,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     (async () => {
       try {
-        console.log('[AuthContext] initializing session from Supabase');
-        const { data, error } = await supabase.auth.getSession();
-        if (error) {
-          console.error('[AuthContext] supabase.getSession error', error);
-        }
-        if (data?.session && mounted) {
-          setToken(data.session.access_token || null);
-          const supUser = data.session.user;
-          setUser({
-            id: supUser.id,
-            firstName: (supUser.user_metadata as any)?.firstName || supUser.email || 'User',
-            lastName: (supUser.user_metadata as any)?.lastName || undefined,
-            email: supUser.email || undefined,
-            phone: (supUser.user_metadata as any)?.phone || null,
-            user_metadata: supUser.user_metadata as any,
-          });
-          console.log('[AuthContext] session restored', { user: supUser });
+        console.log('[AuthContext] initializing session from localStorage');
+        // Check for token in localStorage (set by Worker API login)
+        const storedToken = localStorage.getItem('cryopay_token');
+        if (storedToken && mounted) {
+          setToken(storedToken);
+          // Fetch user profile using the token
+          const response = await apiFetch('/api/profile');
+          if (response.ok && response.data?.profile) {
+            const profile = response.data.profile;
+            // Check if this is a MetaMask user (email ends with @wallet.cryopay)
+            const isMetaMaskUser = profile.email?.endsWith('@wallet.cryopay');
+            setUser({
+              id: profile.id,
+              // For MetaMask users without a name, use 'User' instead of the wallet address
+              firstName: profile.first_name || (isMetaMaskUser ? 'User' : profile.email) || 'User',
+              lastName: profile.last_name || undefined,
+              email: profile.email || undefined,
+              phone: profile.phone || null,
+              user_metadata: { notifications: profile.notifications ? JSON.parse(profile.notifications) : {} },
+            });
+            console.log('[AuthContext] session restored from token');
+          }
         }
       } catch (e) {
         console.error('[AuthContext] unexpected error while initializing session', e);
@@ -64,52 +69,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     })();
 
-    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log('[AuthContext] auth state changed', event, session);
-      if (session?.access_token) {
-        setToken(session.access_token);
-        const supUser = session.user;
-        setUser({
-          id: supUser.id,
-          firstName: (supUser.user_metadata as any)?.firstName || supUser.email || 'User',
-          lastName: (supUser.user_metadata as any)?.lastName || undefined,
-          email: supUser.email || undefined,
-          phone: (supUser.user_metadata as any)?.phone || null,
-          user_metadata: supUser.user_metadata as any,
-        });
-      } else {
-        setToken(null);
-        setUser(null);
-      }
-    });
-
     return () => {
       mounted = false;
-      listener?.subscription?.unsubscribe?.();
     };
   }, []);
 
   const refreshUser = async () => {
     try {
-      // Prefer the getUser API, but fall back to the session (some SDK/edge cases
-      // can return null for getUser immediately after an update).
-      const { data } = await supabase.auth.getUser();
-      let supUser = (data as any)?.user;
-      if (!supUser) {
-        // Fallback: try reading from the active session
-        const { data: sessionData } = await supabase.auth.getSession();
-        supUser = (sessionData as any)?.session?.user || null;
-      }
-      if (supUser) {
+      const response = await apiFetch('/api/profile');
+      if (response.ok && response.data?.profile) {
+        const profile = response.data.profile;
+        // Check if this is a MetaMask user (email ends with @wallet.cryopay)
+        const isMetaMaskUser = profile.email?.endsWith('@wallet.cryopay');
         setUser({
-          id: supUser.id,
-          firstName: (supUser.user_metadata as any)?.firstName || supUser.email || 'User',
-          lastName: (supUser.user_metadata as any)?.lastName || undefined,
-          email: supUser.email || undefined,
-          phone: (supUser.user_metadata as any)?.phone || null,
-          user_metadata: supUser.user_metadata as any,
+          id: profile.id,
+          // For MetaMask users without a name, use 'User' instead of the wallet address
+          firstName: profile.first_name || (isMetaMaskUser ? 'User' : profile.email) || 'User',
+          lastName: profile.last_name || undefined,
+          email: profile.email || undefined,
+          phone: profile.phone || null,
+          user_metadata: { notifications: profile.notifications ? JSON.parse(profile.notifications) : {} },
         });
-        setToken((await supabase.auth.getSession()).data?.session?.access_token || null);
       }
     } catch (err) {
       console.warn('[AuthContext] refreshUser failed', err);
@@ -126,11 +106,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = async () => {
     console.log('[AuthContext] logout');
-    try {
-      await supabase.auth.signOut();
-    } catch (err) {
-      console.error('[AuthContext] signOut error', err);
-    }
+    // Clear local token (Worker doesn't need to do anything for logout)
     localStorage.removeItem('cryopay_token');
     setToken(null);
     setUser(null);

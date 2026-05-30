@@ -2,7 +2,14 @@
 // Exports: generateKeyPair, exportJwk, importJwk, deriveKeyFromPassword, encryptJwkWithPassword, decryptJwkWithPassword, signString, verifySignature, jwkThumbprint
 
 const b64 = (buf: ArrayBuffer) => btoa(String.fromCharCode(...new Uint8Array(buf)));
-const b64ToBuf = (b64str: string) => Uint8Array.from(atob(b64str), c => c.charCodeAt(0)).buffer;
+const b64ToBuf = (b64str: string): ArrayBuffer => {
+  const decoded = atob(b64str);
+  const bytes = new Uint8Array(decoded.length);
+  for (let i = 0; i < decoded.length; i++) {
+    bytes[i] = decoded.charCodeAt(i);
+  }
+  return bytes.buffer as ArrayBuffer;
+};
 
 export async function generateKeyPair() {
   const keyPair = await window.crypto.subtle.generateKey(
@@ -120,7 +127,11 @@ export async function sha256Hex(textOrB64: string) {
   try {
     // crude check: if contains only base64 url chars and has padding or length, treat as base64
     if (/^[A-Za-z0-9+/=]+$/.test(textOrB64)) {
-      data = new Uint8Array(atob(textOrB64).split('').map(c => c.charCodeAt(0)));
+      const decoded = atob(textOrB64);
+      data = new Uint8Array(decoded.length);
+      for (let i = 0; i < decoded.length; i++) {
+        data[i] = decoded.charCodeAt(i);
+      }
     } else {
       data = new TextEncoder().encode(textOrB64);
     }
